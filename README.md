@@ -5,7 +5,7 @@
 ## With JN, a quick graph construction mechanism is introduced so that more complex deep networks can be created more easily.
 ## This reporsitory is collaborated with Ning Xu (xuningandy@outlook.com).
 
-Apology for the possible delay due to pandemics, we are working to our full extent. This extra framework is derived from another repository named DeepFrame. We 
+Apology for the possible delay due to pandemics, we are working to our full extent. This extra framework is derived from another repository named DeepFrame.
 
 ## There are 3 versions of JN ##
 * This neuron library currently supports CPU. 
