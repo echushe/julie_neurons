@@ -1,5 +1,3 @@
-// Headers of both closesource and opensource licenses are provided here.
-
 /******************************************************************************
  *             Copyright 2020 DeepFrame AI
  *
