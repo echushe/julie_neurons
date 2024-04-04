@@ -12,9 +12,9 @@ namespace test
     {
     public:
 
-        static julie::la::SLMatrix<DT> generate_random_SLMatrix(double non_zero_rate, const julie::la::Shape & sh);
+        static julie::la::cpu::SLMatrix<DT> generate_random_SLMatrix(float non_zero_rate, const julie::la::Shape & sh);
 
-        static julie::la::SLMatrix<DT> generate_random_SLMatrix(double non_zero_rate, const julie::la::Shape & sh, DT min, DT max);
+        static julie::la::cpu::SLMatrix<DT> generate_random_SLMatrix(float non_zero_rate, const julie::la::Shape & sh, DT min, DT max);
 
 
     public:
@@ -27,7 +27,7 @@ std::default_random_engine test::RandSMatrix<DT>::generator;
 
 
 template <typename DT>
-julie::la::SLMatrix<DT> test::RandSMatrix<DT>::generate_random_SLMatrix(double non_zero_rate, const julie::la::Shape & sh, DT min, DT max)
+julie::la::cpu::SLMatrix<DT> test::RandSMatrix<DT>::generate_random_SLMatrix(float non_zero_rate, const julie::la::Shape & sh, DT min, DT max)
 {
     if (non_zero_rate > 1.0)
     {
@@ -46,10 +46,10 @@ julie::la::SLMatrix<DT> test::RandSMatrix<DT>::generate_random_SLMatrix(double n
     lint size = sh.size();
     lint n_non_zero_items = static_cast<lint>(size * non_zero_rate);
 
-    std::map<lint, julie::la::SLMatrixTuple<DT>> key_values;
+    std::map<lint, julie::la::cpu::SLMatrixTuple<DT>> key_values;
 
     std::uniform_int_distribution<lint> index_distribution(0, size - 1);
-    std::uniform_real_distribution<double> value_distribution(min, max);
+    std::uniform_real_distribution<float> value_distribution(min, max);
 
     while (key_values.size() < n_non_zero_items)
     {
@@ -59,22 +59,22 @@ julie::la::SLMatrix<DT> test::RandSMatrix<DT>::generate_random_SLMatrix(double n
         if (!key_values.count(index))
         {
             auto pos = julie::la::Coordinate{index, sh};
-            julie::la::SLMatrixTuple<DT> new_tuple {pos[0], pos[1], value};
+            julie::la::cpu::SLMatrixTuple<DT> new_tuple {pos[0], pos[1], value};
             key_values.insert({index, new_tuple});
         }
     }
 
     // Insert generated items into the SLMatrix
 
-    julie::la::SLMatrix<DT> rand_mat {sh};
+    julie::la::cpu::SLMatrix<DT> rand_mat {sh};
 
-    julie::la::SLMatrixTuple<DT> ** row_ref = new julie::la::SLMatrixTuple<DT>*[sh[0]] {nullptr};
-    julie::la::SLMatrixTuple<DT> ** col_ref = new julie::la::SLMatrixTuple<DT>*[sh[1]] {nullptr};
+    julie::la::cpu::SLMatrixTuple<DT> ** row_ref = new julie::la::cpu::SLMatrixTuple<DT>*[sh[0]] {nullptr};
+    julie::la::cpu::SLMatrixTuple<DT> ** col_ref = new julie::la::cpu::SLMatrixTuple<DT>*[sh[1]] {nullptr};
 
     for (auto & key_value : key_values)
     {
-        julie::la::SLMatrixTuple<DT> *t_ptr = new julie::la::SLMatrixTuple<DT> {key_value.second};
-        julie::la::SLMatrix<DT>::new_item(rand_mat, row_ref, col_ref, t_ptr);
+        julie::la::cpu::SLMatrixTuple<DT> *t_ptr = new julie::la::cpu::SLMatrixTuple<DT> {key_value.second};
+        julie::la::cpu::SLMatrix<DT>::new_item(rand_mat, row_ref, col_ref, t_ptr);
     }
 
     delete []row_ref;
@@ -85,7 +85,7 @@ julie::la::SLMatrix<DT> test::RandSMatrix<DT>::generate_random_SLMatrix(double n
 }
 
 template <typename DT>
-julie::la::SLMatrix<DT> test::RandSMatrix<DT>::generate_random_SLMatrix(double non_zero_rate, const julie::la::Shape & sh)
+julie::la::cpu::SLMatrix<DT> test::RandSMatrix<DT>::generate_random_SLMatrix(float non_zero_rate, const julie::la::Shape & sh)
 {
     return test::RandSMatrix<DT>::generate_random_SLMatrix(non_zero_rate, sh, -10, 10);
 }

@@ -1,6 +1,29 @@
+/******************************************************************************
+ *             Copyright 2020 DeepFrame AI
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ ******************************************************************************/
+
+/******************************************************************************
+ * This is a sample program to construct and train a 5-layer convolutional
+ * neural network using the MNIST dataset.
+ * 
+ * To build and run this program, please download the MNIST dataset in advance.
+ ******************************************************************************/
+
 #pragma once
 
-#include "DMatrix.hpp"
+#include "iMatrix.hpp"
 #include "graph.hpp"
 #include "add.hpp"
 #include "matmul.hpp"
@@ -12,6 +35,8 @@
 #include "arctan.hpp"
 #include "prelu.hpp"
 #include "conv2d_op.hpp"
+#include "maxpool.hpp"
+#include "avgpool.hpp"
 
 #include "Dataset.hpp"
 #include "Mnist.hpp"
@@ -21,311 +46,312 @@
 
 #include "sgd.hpp"
 
+#include <random>
+
 namespace demo
 {
-    void conv2d_mnist()
+
+void conv2d_mnist(const std::string &dataset_dir)
+{
+    std::cout << "====================== train mnist =====================" << std::endl;
+
+    // MatrixTypes:
+    // julie::CPU    Any calculation of this matrix type will run on CPU only
+    // julie::CUDA   Most calculations of this matrix type will run on nvidia GPU
+    // julie::la::CL     Most calculations of this matrix type will run via openCL API (still under development)
+    julie::MatrixType mat_type;
+#ifdef WITH_CUDA
+    mat_type = julie::CUDA;
+#else
+    mat_type = julie::CPU;
+#endif
+
+    // ----------------------------------------------------------------- //
+    // --------------------- Load the MNIST data set ------------------- //
+    // ----------------------------------------------------------------- //
+
+    std::vector<std::shared_ptr<julie::la::iMatrix<float>>> train_set;
+    std::vector<std::shared_ptr<julie::la::iMatrix<float>>> train_label;
+
+    std::vector<std::shared_ptr<julie::la::iMatrix<float>>> val_set;
+    std::vector<std::shared_ptr<julie::la::iMatrix<float>>> val_label;
+
+    std::shared_ptr<dataset::Dataset> train_set_getter = std::make_shared<dataset::Mnist>(
+        dataset_dir + "/train-images-idx3-ubyte",
+        dataset_dir + "/train-labels-idx1-ubyte");
+    
+    std::shared_ptr<dataset::Dataset> val_set_getter = std::make_shared<dataset::Mnist>(
+        dataset_dir + "/t10k-images-idx3-ubyte",
+        dataset_dir + "/t10k-labels-idx1-ubyte");
+
+    train_set_getter->get_samples_and_labels(train_set, train_label);
+    val_set_getter->get_samples_and_labels(val_set, val_label);
+
+    // ----------------------------------------------------------------- //
+    // ------------------ Buid the network structure ------------------- //
+    // ----------------------------------------------------------------- //
+
+    // Initialize weights
+    julie::la::iMatrix<float> W_1_mat {julie::la::Shape{16, 1, 5, 5}};
+    W_1_mat.gaussian_random(0, 0.1);
+    julie::la::iMatrix<float> B_1_mat {0, julie::la::Shape{16}};
+
+    julie::la::iMatrix<float> W_2_mat {julie::la::Shape{32, 16, 3, 3}};
+    W_2_mat.gaussian_random(0, 0.1);
+    julie::la::iMatrix<float> B_2_mat {0, julie::la::Shape{32}};
+
+    julie::la::iMatrix<float> W_3_mat {julie::la::Shape{64, 32, 3, 3}};
+    W_3_mat.gaussian_random(0, 0.1);
+    julie::la::iMatrix<float> B_3_mat {0, julie::la::Shape{64}};
+
+    julie::la::iMatrix<float> W_4_mat {julie::la::Shape{128, 64, 3, 3}};
+    W_4_mat.gaussian_random(0, 0.1);
+    julie::la::iMatrix<float> B_4_mat {0, julie::la::Shape{128}};
+
+    julie::la::iMatrix<float> W_5_mat {julie::la::Shape{10, 128, 1, 1}};
+    W_5_mat.gaussian_random(0, 0.1);
+    julie::la::iMatrix<float> B_5_mat {0, julie::la::Shape{10}};
+
+    julie::op::Graph the_model_graph;
+
+    // Construct the first conv layer
+    /////////////////////////////////////////////////////////////////////////////////////
+    auto x = std::make_shared<julie::nn::var::Tensor<float>> ();
+    auto W_1 = std::make_shared<julie::nn::var::Tensor<float>> (W_1_mat);
+    W_1->trainable(true);
+    auto B_1 = std::make_shared<julie::nn::var::Tensor<float>> (B_1_mat);
+    B_1->trainable(true);
+    auto A_1 = std::make_shared<julie::nn::var::Scalar<float>> (0.0);
+    A_1->trainable(true);
+
+    auto conv_1 = std::make_shared<julie::nn::func::Conv2d> (2, 2, 1, 1);
+    auto act_1 = std::make_shared<julie::nn::func::PReLU> ();
+
+    the_model_graph.add_node(conv_1, {x, W_1, B_1});
+    the_model_graph.add_node(act_1, {conv_1->get_output(), A_1});
+
+    // Construct the first pooling layer
+    //////////////////////////////////////////////////////////////////////////////////////
+
+    auto maxpool_1 = std::make_shared<julie::nn::func::MaxPool> (0, 0, 4, 4, 2, 2);
+    the_model_graph.add_node(maxpool_1, {act_1->get_output()});
+
+    // Construct the second conv layer
+    //////////////////////////////////////////////////////////////////////////////////////
+
+    auto W_2 = std::make_shared<julie::nn::var::Tensor<float>> (W_2_mat);
+    W_2->trainable(true);
+    auto B_2 = std::make_shared<julie::nn::var::Tensor<float>> (B_2_mat);
+    B_2->trainable(true);
+    auto A_2 = std::make_shared<julie::nn::var::Scalar<float>> (0.0);
+    A_2->trainable(true);
+
+    auto conv_2 = std::make_shared<julie::nn::func::Conv2d> (1, 1, 1, 1);
+    auto act_2 = std::make_shared<julie::nn::func::PReLU> ();
+
+    the_model_graph.add_node(conv_2, {maxpool_1->get_output(), W_2, B_2});
+    the_model_graph.add_node(act_2, {conv_2->get_output(), A_2});
+
+    // Construct the second pooling layer
+    /////////////////////////////////////////////////////////////////////////////////////
+
+    auto maxpool_2 = std::make_shared<julie::nn::func::MaxPool> (0, 0, 3, 3, 2, 2);
+    the_model_graph.add_node(maxpool_2, {act_2->get_output()});
+
+    // Construct the third conv layer
+    /////////////////////////////////////////////////////////////////////////////////////
+
+    auto W_3 = std::make_shared<julie::nn::var::Tensor<float>> (W_3_mat);
+    W_3->trainable(true);
+    auto B_3 = std::make_shared<julie::nn::var::Tensor<float>> (B_3_mat);
+    B_3->trainable(true);
+    auto A_3 = std::make_shared<julie::nn::var::Scalar<float>> (0.0);
+    A_3->trainable(true);
+
+    auto conv_3 = std::make_shared<julie::nn::func::Conv2d> (1, 1, 1, 1);
+    auto act_3 = std::make_shared<julie::nn::func::PReLU> ();
+
+    the_model_graph.add_node(conv_3, {maxpool_2->get_output(), W_3, B_3});
+    the_model_graph.add_node(act_3, {conv_3->get_output(), A_3});
+
+    // Construct the third pooling layer
+    ////////////////////////////////////////////////////////////////////////////////////
+
+    auto maxpool_3 = std::make_shared<julie::nn::func::MaxPool> (0, 0, 2, 2, 2, 2);
+    the_model_graph.add_node(maxpool_3, {act_3->get_output()});
+
+    // Construct the forth conv layer
+    ////////////////////////////////////////////////////////////////////////////////////
+
+    auto W_4 = std::make_shared<julie::nn::var::Tensor<float>> (W_4_mat);
+    W_4->trainable(true);
+    auto B_4 = std::make_shared<julie::nn::var::Tensor<float>> (B_4_mat);
+    B_4->trainable(true);
+    auto A_4 = std::make_shared<julie::nn::var::Scalar<float>> (0.0);
+    A_4->trainable(true);
+
+    auto conv_4 = std::make_shared<julie::nn::func::Conv2d> (0, 0, 3, 3);
+    auto act_4 = std::make_shared<julie::nn::func::PReLU> ();
+
+    the_model_graph.add_node(conv_4, {maxpool_3->get_output(), W_4, B_4});
+    the_model_graph.add_node(act_4, {conv_4->get_output(), A_4});
+
+    // Construct the fifth conv layer
+    ////////////////////////////////////////////////////////////////////////////////////
+
+    auto W_5 = std::make_shared<julie::nn::var::Tensor<float>> (W_5_mat);
+    W_5->trainable(true);
+    auto B_5 = std::make_shared<julie::nn::var::Tensor<float>> (B_5_mat);
+    B_5->trainable(true);
+
+    auto conv_5 = std::make_shared<julie::nn::func::Conv2d> (0, 0, 1, 1);
+    auto act_5 = std::make_shared<julie::nn::func::SoftMax> (1);
+
+    the_model_graph.add_node(conv_5, {act_4->get_output(), W_5, B_5});
+    the_model_graph.add_node(act_5, {conv_5->get_output()});
+
+    ////////////////////////////////////////////////////////////////////////////////////
+
+    auto target = std::make_shared<julie::nn::var::Tensor<float>> ();
+    auto loss_func = std::make_shared<julie::nn::func::SoftMax_CrossEntropy> (1);
+
+    the_model_graph.add_node(loss_func, {conv_5->get_output(), target});
+    
+    auto act_1_output = std::dynamic_pointer_cast<julie::nn::var::Tensor<float>> (act_1->get_output());
+    auto act_2_output = std::dynamic_pointer_cast<julie::nn::var::Tensor<float>> (act_2->get_output());
+    auto act_3_output = std::dynamic_pointer_cast<julie::nn::var::Tensor<float>> (act_3->get_output());
+    auto act_4_output = std::dynamic_pointer_cast<julie::nn::var::Tensor<float>> (act_4->get_output());
+    auto act_5_output = std::dynamic_pointer_cast<julie::nn::var::Tensor<float>> (act_5->get_output());
+    auto loss_output = std::dynamic_pointer_cast<julie::nn::var::Tensor<float>> (loss_func->get_output());
+
+    the_model_graph.add_input(x);
+    the_model_graph.set_device(mat_type);
+
+    std::cout << the_model_graph.to_string() << std::endl;
+    
+    ///////////////////////////////////////////////////////////////////////////////////
+    // ----------------------------------------------------------------- //
+    //                             Training                              //
+    // ----------------------------------------------------------------- //
+
+    // Define the optimizer
+    julie::nn::opt::SGD optimizer {the_model_graph, 0.0005, 0.5};
+
+    // Define random generators
+    std::uniform_int_distribution<lint> train_distribution{ 0, static_cast<lint>(train_set.size() - 1) };
+    std::uniform_int_distribution<lint> val_distribution{ 0, static_cast<lint>(val_set.size() - 1) };
+
+    lint train_batch_size = 100;
+    lint val_batch_size = 100;
+
+    std::default_random_engine rand_engine;
+
+    for (lint itr = 0; itr < 600; ++itr)
     {
-        std::cout << "====================== train mnist =====================" << std::endl;
+        the_model_graph.clear_forwards();
+        the_model_graph.clear_backwards();
 
-        // ----------------------------------------------------------------- //
-        // --------------------- Load the MNIST data set ------------------- //
-        // ----------------------------------------------------------------- //
+        std::vector<std::shared_ptr<julie::la::iMatrix<float>>> x_batch;
+        std::vector<std::shared_ptr<julie::la::iMatrix<float>>> t_batch;
 
-        std::string dataset_dir = "../../../dataset/";
+        for (lint i = 0; i < train_batch_size; ++i)
+        {
+            lint index = train_distribution(rand_engine);
 
-        std::vector<julie::la::DMatrix<double>> train_set;
-        std::vector<julie::la::DMatrix<double>> train_label;
-
-        std::vector<julie::la::DMatrix<double>> val_set;
-        std::vector<julie::la::DMatrix<double>> val_label;
-
-        std::shared_ptr<dataset::Dataset> train_set_getter = std::make_shared<dataset::Mnist>(
-            dataset_dir + "mnist/train-images-idx3-ubyte",
-            dataset_dir + "mnist/train-labels-idx1-ubyte");
+            x_batch.push_back(train_set[index]);
+            t_batch.push_back(train_label[index]);
+        }
         
-        std::shared_ptr<dataset::Dataset> val_set_getter = std::make_shared<dataset::Mnist>(
-            dataset_dir + "mnist/t10k-images-idx3-ubyte",
-            dataset_dir + "mnist/t10k-labels-idx1-ubyte");
+        julie::la::iMatrix<float> x_mat {x_batch}; x_mat.set_matrix_type(mat_type);
+        julie::la::iMatrix<float> t_mat {t_batch}; t_mat.set_matrix_type(mat_type);
 
-        train_set_getter->get_samples_and_labels(train_set, train_label);
-        val_set_getter->get_samples_and_labels(val_set, val_label);
+        x_mat.normalize().reshape(julie::la::Shape {train_batch_size, 1, 28, 28});
+        t_mat.reshape(julie::la::Shape {train_batch_size, 10, 1, 1});
 
-        // ----------------------------------------------------------------- //
-        // ------------------ Buid the network structure ------------------- //
-        // ----------------------------------------------------------------- //
+        x->val( x_mat );
+        target->val( t_mat );
 
-        // Initialize weights
-        julie::la::DMatrix<double> w1_mat {julie::la::Shape{4, 1, 4, 4}};
-        w1_mat.gaussian_random(0, 0.1);
-        julie::la::DMatrix<double> b1_mat {0, julie::la::Shape{4}};
-
-        julie::la::DMatrix<double> w2_mat {julie::la::Shape{8, 4, 3, 3}};
-        w2_mat.gaussian_random(0, 0.1);
-        julie::la::DMatrix<double> b2_mat {0, julie::la::Shape{8}};
-
-        julie::la::DMatrix<double> w3_mat {julie::la::Shape{16, 8, 3, 3}};
-        w3_mat.gaussian_random(0, 0.1);
-        julie::la::DMatrix<double> b3_mat {0, julie::la::Shape{16}};
-
-        julie::la::DMatrix<double> w4_mat {julie::la::Shape{32, 16, 3, 3}};
-        w4_mat.gaussian_random(0, 0.1);
-        julie::la::DMatrix<double> b4_mat {0, julie::la::Shape{32}};
-
-        julie::la::DMatrix<double> w5_mat {julie::la::Shape{10, 32, 1, 1}};
-        w5_mat.gaussian_random(0, 0.1);
-        julie::la::DMatrix<double> b5_mat {0, julie::la::Shape{10}};
-
-
+        the_model_graph.forward(loss_func->get_output());
+        the_model_graph.forward(act_5->get_output());
         
-        // Build the network structure
+        the_model_graph.backward();
 
-        auto x = std::make_shared<julie::nn::var::Tensor<double>> ();
-        auto w1 = std::make_shared<julie::nn::var::Tensor<double>> (w1_mat);
-        w1->trainable(true);
-        auto b1 = std::make_shared<julie::nn::var::Tensor<double>> (b1_mat);
-        b1->trainable(true);
+        auto pred_batch = act_5_output->val()->argmax(1);
+        auto targets    = t_mat.argmax(1);
+        float right = 0;
 
-        auto conv_1 = std::make_shared<julie::nn::func::Conv2d> (x, w1, b1, 2, 2, 2, 2);
-        auto act_1 = std::make_shared<julie::nn::func::ReLU> (conv_1->get_output());
+        for (size_t i = 0; i < pred_batch.size(); ++i)
+        {
+            if (pred_batch[i][1] == targets[i][1])
+            {
+                right += 1.0;
+            }
+        }
 
-        //////////////////////////////////////////////////////////////////////////////////////
+        std::cout << "Train Accuracy: " << right / train_batch_size << std::endl;
 
-        auto w2 = std::make_shared<julie::nn::var::Tensor<double>> (w2_mat);
-        w2->trainable(true);
-        auto b2 = std::make_shared<julie::nn::var::Tensor<double>> (b2_mat);
-        b2->trainable(true);
-
-        auto conv_2 = std::make_shared<julie::nn::func::Conv2d> (act_1->get_output(), w2, b2, 0, 0, 2, 2);
-        auto act_2 = std::make_shared<julie::nn::func::ReLU> (conv_2->get_output());
-
-        /////////////////////////////////////////////////////////////////////////////////////
-
-        auto w3 = std::make_shared<julie::nn::var::Tensor<double>> (w3_mat);
-        w3->trainable(true);
-        auto b3 = std::make_shared<julie::nn::var::Tensor<double>> (b3_mat);
-        b3->trainable(true);
-
-        auto conv_3 = std::make_shared<julie::nn::func::Conv2d> (act_2->get_output(), w3, b3, 0, 0, 2, 2);
-        auto act_3 = std::make_shared<julie::nn::func::ReLU> (conv_3->get_output());
-
-        ////////////////////////////////////////////////////////////////////////////////////
-
-        auto w4 = std::make_shared<julie::nn::var::Tensor<double>> (w4_mat);
-        w4->trainable(true);
-        auto b4 = std::make_shared<julie::nn::var::Tensor<double>> (b4_mat);
-        b4->trainable(true);
-
-        auto conv_4 = std::make_shared<julie::nn::func::Conv2d> (act_3->get_output(), w4, b4, 0, 0, 3, 3);
-        auto act_4 = std::make_shared<julie::nn::func::ReLU> (conv_4->get_output());
-
-        ////////////////////////////////////////////////////////////////////////////////////
-
-        auto w5 = std::make_shared<julie::nn::var::Tensor<double>> (w5_mat);
-        w5->trainable(true);
-        auto b5 = std::make_shared<julie::nn::var::Tensor<double>> (b5_mat);
-        b5->trainable(true);
-
-        auto conv_5 = std::make_shared<julie::nn::func::Conv2d> (act_4->get_output(), w5, b5, 0, 0, 1, 1);
-        auto act_5 = std::make_shared<julie::nn::func::SoftMax> (conv_5->get_output(), 1);
-
-        ////////////////////////////////////////////////////////////////////////////////////
-
-        auto target = std::make_shared<julie::nn::var::Tensor<double>> ();
-        auto loss_func = std::make_shared<julie::nn::func::SoftMax_CrossEntropy> (conv_5->get_output(), target, 1);
+        // Update the weights
+        optimizer.step();
         
-        auto act_5_output = dynamic_cast<julie::nn::var::Tensor<double>*>(act_5->get_output().get());
-        auto loss_output = dynamic_cast<julie::nn::var::Tensor<double>*>(loss_func->get_output().get());
-        auto conv_5_output = dynamic_cast<julie::nn::var::Tensor<double>*>(conv_5->get_output().get());
-
-        std::cout << "---------------------- 1 ---------------------" << std::endl;
-
-        julie::op::Graph the_model_graph;
-        the_model_graph.new_function(conv_1);
-        the_model_graph.new_function(act_1);
-        the_model_graph.new_function(conv_2);
-        the_model_graph.new_function(act_2);
-        the_model_graph.new_function(conv_3);
-        the_model_graph.new_function(act_3);
-        the_model_graph.new_function(conv_4);
-        the_model_graph.new_function(act_4);
-        the_model_graph.new_function(conv_5);
-        the_model_graph.new_function(act_5);
-        the_model_graph.new_function(loss_func);
-
-
-        the_model_graph.pave_backward_route(w1);
-        the_model_graph.pave_backward_route(b1);
-        the_model_graph.pave_backward_route(w2);
-        the_model_graph.pave_backward_route(b2);
-        the_model_graph.pave_backward_route(w3);
-        the_model_graph.pave_backward_route(b3);
-        the_model_graph.pave_backward_route(w4);
-        the_model_graph.pave_backward_route(b4);
-        the_model_graph.pave_backward_route(w5);
-        the_model_graph.pave_backward_route(b5);
-
-
-        
-        ///////////////////////////////////////////////////////////////////////////////////
-        // ----------------------------------------------------------------- //
-        // --------------------------- Training ---------------------------- //
-        // ----------------------------------------------------------------- //
-
-        std::vector<std::shared_ptr<julie::op::Variable>> params_to_train;
-        params_to_train.push_back(w1);
-        params_to_train.push_back(b1);
-
-        params_to_train.push_back(w2);
-        params_to_train.push_back(b2);
-
-        params_to_train.push_back(w3);
-        params_to_train.push_back(b3);
-
-        params_to_train.push_back(w4);
-        params_to_train.push_back(b4);
-
-        //std::cout << "---------------------- 2 ---------------------" << std::endl;
-
-        // Define the optimizer
-        julie::nn::opt::SGD optimizer {params_to_train, 0.001, 0.5};
-
-        // Define random generators
-        std::uniform_int_distribution<lint> train_distribution{ 0, static_cast<lint>(train_set.size() - 1) };
-        std::uniform_int_distribution<lint> val_distribution{ 0, static_cast<lint>(val_set.size() - 1) };
-
-        //std::cout << "---------------------- 3 ---------------------" << std::endl;
-
-        lint train_batch_size = 256;
-        lint val_batch_size = 1000;
-
-        for (lint itr = 0; itr < 200; ++itr)
+        // One validation for each 100 training iterations
+        if ((itr + 1) % 100 == 0)
         {
             the_model_graph.clear_forwards();
             the_model_graph.clear_backwards();
+            the_model_graph.clear_cache();
 
-            std::vector<julie::la::DMatrix<double>> x_batch;
-            std::vector<julie::la::DMatrix<double>> t_batch;
-
-            //std::cout << "---------- 4 ---------- Alive SLMatrix items: " << julie::la::SLMatrixTuple<double>::REF_COUNT << std::endl;
-
-            for (lint itr = 0; itr < train_batch_size; ++itr)
-            {
-                lint index = train_distribution(julie::la::global::global_rand_engine);
-                x_batch.push_back(train_set[index]);
-                t_batch.push_back(train_label[index]);
-            }
-
-            //std::cout << "---------- 5 ---------- Alive SLMatrix items: " << julie::la::SLMatrixTuple<double>::REF_COUNT << std::endl;
-            
-            julie::la::DMatrix<double> x_mat {x_batch};
-            julie::la::DMatrix<double> t_mat {t_batch};
-
-            //std::cout << "---------- 6 ---------- Alive SLMatrix items: " << julie::la::SLMatrixTuple<double>::REF_COUNT << std::endl;
-
-            x_mat.normalize().reshape(julie::la::Shape {train_batch_size, 1, 28, 28});
-            t_mat.reshape(julie::la::Shape {train_batch_size, 10, 1, 1});
-
-            //std::cout << "---------- 7 ---------- Alive SLMatrix items: " << julie::la::SLMatrixTuple<double>::REF_COUNT << std::endl;
-            // std::cout << x_mat << std::endl;
-            
-            // std::cout << "The index is: " << index << std::endl; 
-
-            dynamic_cast<julie::nn::var::Tensor<double>*>(x.get())->val( x_mat );
-            dynamic_cast<julie::nn::var::Tensor<double>*>(target.get())->val( t_mat );
-
-            //std::cout << "---------- 8 ---------- Alive SLMatrix items: " << julie::la::SLMatrixTuple<double>::REF_COUNT << std::endl;
-
-            the_model_graph.func_forward(loss_func);
-
-            the_model_graph.func_forward(act_5);
-
-            
-            //std::cout << "---------- 9 ---------- Alive SLMatrix items: " << julie::la::SLMatrixTuple<double>::REF_COUNT << std::endl;
-            
-            the_model_graph.func_backward(conv_1);
-
-            //std::cout << "---------- 10 ---------- Alive SLMatrix items: " << julie::la::SLMatrixTuple<double>::REF_COUNT << std::endl;
-
-
-            auto pred_batch = act_5_output->val()->get_collapsed(0);
-            double right = 0;
-
-            for (size_t i = 0; i < pred_batch.size(); ++i)
-            {
-                if (pred_batch[i].argmax().index() == t_batch[i].argmax().index())
-                {
-                    right += 1.0;
-                }
-            }
-
-            //std::cout << "---------- 11 ---------- Alive SLMatrix items: " << julie::la::SLMatrixTuple<double>::REF_COUNT << std::endl;
-
-            std::cout << "Train Accuracy: " << right / train_batch_size << std::endl;
-
-            // Update the weights
-            optimizer.step();
-
-            //std::cout << "---------- 12 ---------- Alive SLMatrix items: " << julie::la::SLMatrixTuple<double>::REF_COUNT << std::endl;
-
-            if ((itr + 1) % 100 == 0)
+            float right = 0;
+            for (lint infer_itr = 0; infer_itr < 100; ++infer_itr)
             {
                 the_model_graph.clear_forwards();
-                the_model_graph.clear_backwards();
-                the_model_graph.destroy_backward_route();
-
-                lint index = val_distribution(julie::la::global::global_rand_engine);
+                lint index = val_distribution(rand_engine);
 
                 x_batch.clear();
                 t_batch.clear();
 
-                for (lint itr = 0; itr < val_batch_size; ++itr)
+                for (lint i = 0; i < val_batch_size; ++i)
                 {
-                    lint index = val_distribution(julie::la::global::global_rand_engine);
+                    lint index = val_distribution(rand_engine);
+
                     x_batch.push_back(val_set[index]);
                     t_batch.push_back(val_label[index]);
                 }
 
-                julie::la::DMatrix<double> x_mat {x_batch};
-                julie::la::DMatrix<double> t_mat {t_batch};
+                julie::la::iMatrix<float> x_mat {x_batch}; x_mat.set_matrix_type(mat_type);
+                julie::la::iMatrix<float> t_mat {t_batch}; t_mat.set_matrix_type(mat_type);
 
                 x_mat.normalize().reshape(julie::la::Shape {val_batch_size, 1, 28, 28});
                 t_mat.reshape(julie::la::Shape {val_batch_size, 10, 1, 1});
 
-                dynamic_cast<julie::nn::var::Tensor<double>*>(x.get())->val( x_mat );
-                dynamic_cast<julie::nn::var::Tensor<double>*>(target.get())->val( t_mat );
+                x->val( x_mat );
+                target->val( t_mat );
                 
-                the_model_graph.func_forward(act_5);
+                the_model_graph.forward(act_5->get_output());
 
-                auto pred_batch = act_5_output->val()->get_collapsed(0);
-                double right = 0;
+                auto pred_batch = act_5_output->val()->argmax(1);
+                auto targets    = t_mat.argmax(1);
 
                 for (size_t i = 0; i < pred_batch.size(); ++i)
                 {
-                    if (pred_batch[i].argmax().index() == t_batch[i].argmax().index())
+                    if (pred_batch[i][1] == targets[i][1])
                     {
                         right += 1.0;
                     }
                 }
-
-                std::cout << "Itr: " << itr << " ============================== " << std::endl;
-                // std::cout << "alpha1: " << *(alpha1->val()) << std::endl;
-                // std::cout << "alpha2: " << *(alpha2->val()) << std::endl;
-                // std::cout << "alpha3: " << *(alpha3->val()) << std::endl;
-                std::cout << "Itr: " << itr << " ========== Test Accuracy: " << right / val_batch_size << std::endl;
-
-                the_model_graph.pave_backward_route(w1);
-                the_model_graph.pave_backward_route(b1);
-                the_model_graph.pave_backward_route(w2);
-                the_model_graph.pave_backward_route(b2);
-                the_model_graph.pave_backward_route(w3);
-                the_model_graph.pave_backward_route(b3);
-                the_model_graph.pave_backward_route(w4);
-                the_model_graph.pave_backward_route(b4);
-                the_model_graph.pave_backward_route(w5);
-                the_model_graph.pave_backward_route(b5);
-                
             }
-        }
 
+            std::cout << "Train Itr: " << itr << " ============================== " << std::endl;
+            std::cout << "alpha1: " << *(A_1->val()) << std::endl;
+            std::cout << "alpha2: " << *(A_2->val()) << std::endl;
+            std::cout << "alpha3: " << *(A_3->val()) << std::endl;
+            std::cout << act_1_output->val()->shape() << std::endl;
+            std::cout << act_2_output->val()->shape() << std::endl;
+            std::cout << act_3_output->val()->shape() << std::endl;
+            std::cout << act_4_output->val()->shape() << std::endl;
+            std::cout << act_5_output->val()->shape() << std::endl;
+            std::cout << "Train Itr: " << itr << " ========== Test Accuracy: " << right / val_batch_size / 100 << std::endl;
+        }
     }
+
+}
 }  // namespace demo

@@ -1,92 +1,136 @@
+/******************************************************************************
+ *             Copyright 2020 DeepFrame AI
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ ******************************************************************************/
+
 #include "softmax_crossentropy.hpp"
+#include "iMatrix_func.hpp"
 
-
-julie::nn::func::SoftMax_CrossEntropy::SoftMax_CrossEntropy(
-    const std::shared_ptr<op::Variable> & input_ptr,
-    const std::shared_ptr<op::Variable> & target_ptr,
-    lint axis)
-    :
-    op::Function {},
-    m_sc {std::make_unique<la::Softmax_CrossEntropy<double>>(axis)},
-    m_diff {}
+namespace julie
 {
-    // double var = static_cast<double>(100) / w_mat.shape().size();
-    // w_mat.gaussian_random(0, var);
+namespace nn
+{
+namespace func
+{
 
-    this->m_inputs.push_back(input_ptr);
-    this->m_inputs.push_back(target_ptr);
-
-    input_ptr->add_receiver(this);
-    target_ptr->add_receiver(this);
-
-    this->m_output = std::make_shared<var::Tensor<double>> ();
-    this->m_output->set_provider(this);
+SoftMax_CrossEntropy::SoftMax_CrossEntropy(lint axis)
+    :
+    op::Function {std::string {"SoftMax_CrossEntropy"}, true},
+    m_sc {std::make_unique<la::SoftMax_CrossEntropy<float>>(axis)}
+{
+    this->m_output = std::make_shared<var::Tensor<float>> ();
 }
 
-julie::nn::func::SoftMax_CrossEntropy::SoftMax_CrossEntropy(const SoftMax_CrossEntropy & other)
+SoftMax_CrossEntropy::SoftMax_CrossEntropy(const SoftMax_CrossEntropy & other)
     :
     op::Function {other},
-    m_sc {other.m_sc->clone()},
-    m_diff {other.m_diff}
-{}
+    m_sc {std::make_unique<la::SoftMax_CrossEntropy<float>>(*(other.m_sc))}
+{
+    this->m_output = std::make_shared<var::Tensor<float>> ();
+}
 
-julie::nn::func::SoftMax_CrossEntropy::SoftMax_CrossEntropy(SoftMax_CrossEntropy && other)
+SoftMax_CrossEntropy::SoftMax_CrossEntropy(SoftMax_CrossEntropy && other)
     :
     op::Function {other},
-    m_sc {std::move(other.m_sc)},
-    m_diff {std::move(other.m_diff)}
-{}
+    m_sc {std::move(other.m_sc)}
+{
+    this->m_output = std::make_shared<var::Tensor<float>> ();
+}
 
-julie::nn::func::SoftMax_CrossEntropy & julie::nn::func::SoftMax_CrossEntropy::operator = (const SoftMax_CrossEntropy & other)
+SoftMax_CrossEntropy & SoftMax_CrossEntropy::operator = (const SoftMax_CrossEntropy & other)
 {
     op::Function::operator = (other);
-    this->m_sc = other.m_sc->clone();
-    this->m_diff = other.m_diff;
+    this->m_sc = std::make_unique<la::SoftMax_CrossEntropy<float>>(*(other.m_sc));
 
     return *this;
 }
 
-julie::nn::func::SoftMax_CrossEntropy & julie::nn::func::SoftMax_CrossEntropy::operator = (SoftMax_CrossEntropy && other)
+SoftMax_CrossEntropy & SoftMax_CrossEntropy::operator = (SoftMax_CrossEntropy && other)
 {
     op::Function::operator = (other);
     this->m_sc = std::move(other.m_sc);
-    this->m_diff = std::move(other.m_diff);
 
     return *this;
 }
 
-void julie::nn::func::SoftMax_CrossEntropy::forward()
+void SoftMax_CrossEntropy::set_inputs(const std::shared_ptr<op::Function> & self, 
+                                    const std::vector<std::shared_ptr<op::Variable>> & inputs)
 {
-    var::Tensor<double> *input_ptr = dynamic_cast<var::Tensor<double>*>(this->m_inputs[0].get());
-    var::Tensor<double> *target_ptr = dynamic_cast<var::Tensor<double>*>(this->m_inputs[1].get());
-
-    std::shared_ptr<la::DMatrix<double>> input_mat_ptr = input_ptr->val();
-    std::shared_ptr<la::DMatrix<double>> target_mat_ptr = target_ptr->val();
-
-    var::Tensor<double> *output_ptr = dynamic_cast<var::Tensor<double>*>(this->m_output.get());
-
-    output_ptr->val(this->m_sc->operator()(this->m_diff, *target_mat_ptr, *input_mat_ptr));
-    output_ptr->grad(la::DMatrix<double> {1, input_mat_ptr->shape()});
-}
-
-void julie::nn::func::SoftMax_CrossEntropy::backward()
-{
-    var::Tensor<double> *output_ptr = dynamic_cast<var::Tensor<double>*>(this->m_output.get());
-    std::shared_ptr<la::DMatrix<double>> out_grad = output_ptr->grad();
-
-    var::Tensor<double> *input_ptr = dynamic_cast<var::Tensor<double>*>(this->m_inputs[0].get());
-    var::Tensor<double> *target_ptr = dynamic_cast<var::Tensor<double>*>(this->m_inputs[1].get());
-
-    // std::cout << this->m_diff << std::endl;
-
-    if (input_ptr->needs_grad())
+    if (inputs.size() != 2)
     {
-        // Do chain rule for the input
-        input_ptr->grad(this->m_diff);
+        throw std::invalid_argument(std::string("Number of inputs for SoftMax_CrossEntropy operation is not 2"));
     }
 
-    if (target_ptr->needs_grad())
-    {
-        // We DO NOT do chain rule for the target variable
-    }
+    op::Function::set_inputs(self, inputs);
 }
+
+void SoftMax_CrossEntropy::forward()
+{
+    var::Tensor<float> *input_ptr = dynamic_cast<var::Tensor<float>*>(this->m_inputs[0].get());
+    var::Tensor<float> *target_ptr = dynamic_cast<var::Tensor<float>*>(this->m_inputs[1].get());
+
+    std::shared_ptr<julie::la::iMatrix<float>> input_mat_ptr = input_ptr->val();
+    std::shared_ptr<julie::la::iMatrix<float>> target_mat_ptr = target_ptr->val();
+
+    var::Tensor<float> *output_ptr = dynamic_cast<var::Tensor<float>*>(this->m_output.get());
+    
+    // Forward
+    this->m_sc->operator()(*(output_ptr->val()), this->m_diff, *target_mat_ptr, *input_mat_ptr);
+}
+
+void SoftMax_CrossEntropy::backward()
+{
+    var::Tensor<float> *output_ptr = dynamic_cast<var::Tensor<float>*>(this->m_output.get());
+    std::shared_ptr<julie::la::iMatrix<float>> out_grad = output_ptr->grad();
+
+    var::Tensor<float> *input_ptr = dynamic_cast<var::Tensor<float>*>(this->m_inputs[0].get());
+    //var::Tensor<float> *target_ptr = dynamic_cast<var::Tensor<float>*>(this->m_inputs[1].get());
+
+    std::shared_ptr<julie::la::iMatrix<float>> input_mat_ptr = input_ptr->val();
+
+    // Do chain rule for the input
+    this->m_output_grad_cache = *out_grad;
+
+    std::vector<lint> sh;
+    for (lint i = 0; i < input_mat_ptr->shape().dim(); ++i)
+    {
+        if (i == this->m_sc->axis())
+        {
+            sh.push_back(1);
+        }
+        else
+        {
+            sh.push_back(input_mat_ptr->shape()[i]);
+        }
+    }
+    this->m_output_grad_cache.reshape(sh);
+
+    julie::la::repeat(this->m_output_grad_repeat_cache, m_output_grad_cache, this->m_sc->axis(), input_mat_ptr->shape()[this->m_sc->axis()]);
+    julie::la::multiply(this->m_input_grad_cache, this->m_diff, this->m_output_grad_repeat_cache);
+    input_ptr->add_grad(this->m_input_grad_cache);
+
+    // We DO NOT do chain rule for the target variable
+}
+
+void SoftMax_CrossEntropy::clear_cache()
+{
+    this->m_diff = julie::la::iMatrix<float> {};
+    this->m_input_grad_cache = julie::la::iMatrix<float> {};
+    this->m_output_grad_cache = julie::la::iMatrix<float> {};
+    this->m_output_grad_repeat_cache = julie::la::iMatrix<float> {};
+}
+
+} // namespace func
+} // namespace nn
+} // namespace julie

@@ -1,21 +1,46 @@
+/******************************************************************************
+ *             Copyright 2020 DeepFrame AI
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ ******************************************************************************/
+
 #include "Shape.hpp"
-#include "Exceptions.hpp"
+#include "utilities.hpp"
 #include <functional>
 #include <cstring>
 #include <algorithm>
 
-julie::la::Shape::Shape()
-    : m_dim{ 0 }, m_size{ 0 }, m_data{ nullptr }
+namespace julie
+{
+namespace la
+{
+
+Shape::Shape()
+    :
+    m_dim {0},
+    m_size {0},
+    m_data {nullptr}
 {}
 
-julie::la::Shape::Shape(std::initializer_list<lint> list)
-    : m_dim{ list.end() - list.begin() }, m_size{ 1 }
+Shape::Shape(std::initializer_list<lint> list)
+    : 
+    m_dim {list.end() - list.begin()},
+    m_size {0},
+    m_data {nullptr}
 {
     if (this->m_dim < 1)
     {
         this->m_dim = 0;
-        this->m_size = 0;
-        this->m_data = nullptr;
     }
     else
     {
@@ -25,11 +50,12 @@ julie::la::Shape::Shape(std::initializer_list<lint> list)
         {
             if (*itr <= 0)
             {
-                throw std::invalid_argument(invalid_shape_val);
+                throw std::invalid_argument(invalid_shape_val + std::string{__FUNCTION__});
             }
             *p = *itr;
         }
 
+        this->m_size = 1;
         for (lint i = 0; i < this->m_dim; ++i)
         {
             this->m_size *= this->m_data[i];
@@ -37,14 +63,15 @@ julie::la::Shape::Shape(std::initializer_list<lint> list)
     }
 }
 
-julie::la::Shape::Shape(std::vector<lint>& list)
-    : m_dim{ list.end() - list.begin() }, m_size{ 1 }
+Shape::Shape(std::vector<lint> &list)
+    :
+    m_dim {list.end() - list.begin()},
+    m_size {0},
+    m_data {nullptr}
 {
     if (this->m_dim < 1)
     {
         this->m_dim = 0;
-        this->m_size = 0;
-        this->m_data = nullptr;
     }
     else
     {
@@ -54,11 +81,12 @@ julie::la::Shape::Shape(std::vector<lint>& list)
         {
             if (*itr <= 0)
             {
-                throw std::invalid_argument(invalid_shape_val);
+                throw std::invalid_argument(invalid_shape_val + std::string{__FUNCTION__});
             }
             *p = *itr;
         }
 
+        this->m_size = 1;
         for (lint i = 0; i < this->m_dim; ++i)
         {
             this->m_size *= this->m_data[i];
@@ -66,32 +94,49 @@ julie::la::Shape::Shape(std::vector<lint>& list)
     }
 }
 
-julie::la::Shape::Shape(const Shape & other)
-    : m_dim{ other.m_dim }, m_size(other.m_size)
+Shape::Shape(const Shape & other)
+    :
+    m_dim {other.m_dim},
+    m_size {other.m_size},
+    m_data {nullptr}
 {
+    if (this->m_dim < 1)
+    {
+        return;
+    }
+
     this->m_data = new lint[this->m_dim];
 
     std::memcpy(this->m_data, other.m_data, this->m_dim * sizeof(lint));
 }
 
-julie::la::Shape::Shape(Shape && other)
-    : m_dim{ other.m_dim }, m_size(other.m_size), m_data{ other.m_data }
+Shape::Shape(Shape && other)
+    :
+    m_dim {other.m_dim},
+    m_size {other.m_size},
+    m_data {other.m_data}
 {
     other.m_dim = 0;
     other.m_size = 0;
     other.m_data = nullptr;
 }
 
-julie::la::Shape::~Shape()
+Shape::~Shape()
 {
     delete[]this->m_data;
 }
 
-julie::la::Shape & julie::la::Shape::operator = (const Shape & other)
+Shape & Shape::operator = (const Shape &other)
 {
     delete[]m_data;
     this->m_dim = other.m_dim;
     this->m_size = other.m_size;
+    this->m_data = nullptr;
+
+    if (other.m_dim < 1)
+    {
+        return *this;
+    }
 
     this->m_data = new lint[m_dim];
     std::memcpy(this->m_data, other.m_data, m_dim * sizeof(lint));
@@ -99,7 +144,7 @@ julie::la::Shape & julie::la::Shape::operator = (const Shape & other)
     return *this;
 }
 
-julie::la::Shape & julie::la::Shape::operator = (Shape && other)
+Shape & Shape::operator = (Shape && other)
 {
     delete[]m_data;
     this->m_dim = other.m_dim;
@@ -113,33 +158,26 @@ julie::la::Shape & julie::la::Shape::operator = (Shape && other)
     return *this;
 }
 
-lint julie::la::Shape::operator [] (lint index) const
+lint Shape::operator [] (lint index) const
 {
     return this->m_data[index];
 }
 
-/*
-lint & julie::la::Shape::operator [] (lint index)
-{
-    return this->m_data[index];
-}
-*/
-
-lint julie::la::Shape::size() const
+lint Shape::size() const
 {
     return this->m_size;
 }
 
-lint julie::la::Shape::dim() const
+lint Shape::dim() const
 {
     return this->m_dim;
 }
 
-julie::la::Shape & julie::la::Shape::left_extend()
+Shape & Shape::left_extend()
 {
-    if (0 == this->m_dim)
+    if (this->m_dim < 1)
     {
-        throw std::bad_function_call();
+        throw std::string("NULL shape cannot be left extended in ") + std::string(__FUNCTION__);
     }
 
     ++this->m_dim;
@@ -156,11 +194,11 @@ julie::la::Shape & julie::la::Shape::left_extend()
     return *this;
 }
 
-julie::la::Shape & julie::la::Shape::right_extend()
+Shape & Shape::right_extend()
 {
-    if (0 == this->m_dim)
+    if (this->m_dim < 1)
     {
-        throw std::bad_function_call();
+        throw std::string("NULL shape cannot be right extended in ") + std::string(__FUNCTION__);
     }
 
     ++this->m_dim;
@@ -177,7 +215,7 @@ julie::la::Shape & julie::la::Shape::right_extend()
     return *this;
 }
 
-julie::la::Shape julie::la::Shape::get_reversed() const
+Shape Shape::get_reversed() const
 {
     Shape reversed(*this);
 
@@ -191,7 +229,7 @@ julie::la::Shape julie::la::Shape::get_reversed() const
     return reversed;
 }
 
-julie::la::Shape julie::la::Shape::sub_shape(lint dim_first, lint dim_last) const
+Shape Shape::sub_shape(lint dim_first, lint dim_last) const
 {
     Shape sub_shape;
 
@@ -203,7 +241,8 @@ julie::la::Shape julie::la::Shape::sub_shape(lint dim_first, lint dim_last) cons
     if (dim_first < 0 || dim_last > this->m_dim - 1)
     {
         throw std::invalid_argument(
-            std::string("Shape::sub_shape: index of dimension out of range")
+            std::string("Shape::sub_shape: index of dimension out of range in ")
+            + std::string{__FUNCTION__}
         );
     }
 
@@ -225,9 +264,14 @@ julie::la::Shape julie::la::Shape::sub_shape(lint dim_first, lint dim_last) cons
 }
 
 // Overloading of a == b
-bool julie::la::operator == (const Shape &left, const Shape &right)
+bool operator == (const Shape &left, const Shape &right)
 {
     if (left.m_dim != right.m_dim)
+    {
+        return false;
+    }
+
+    if (left.m_size != right.m_size)
     {
         return false;
     }
@@ -244,14 +288,20 @@ bool julie::la::operator == (const Shape &left, const Shape &right)
 }
 
 // Overloading of a != b
-bool julie::la::operator != (const Shape &left, const Shape &right)
+bool operator != (const Shape &left, const Shape &right)
 {
     return !(left == right);
 }
 
-julie::la::Shape julie::la::operator + (const Shape & left, const Shape & right)
+Shape operator + (const Shape & left, const Shape & right)
 {
     Shape merged;
+
+    if (left.m_dim < 1 && right.m_dim < 1 )
+    {
+        return merged;
+    }
+
     merged.m_dim = left.m_dim + right.m_dim;
     merged.m_size = std::max<lint>(left.m_size, 1) * std::max<lint>(right.m_size, 1);
     merged.m_data = new lint[merged.m_dim];
@@ -269,14 +319,14 @@ julie::la::Shape julie::la::operator + (const Shape & left, const Shape & right)
     return merged;
 }
 
-julie::la::Shape julie::la::reverse(const Shape & sh)
+Shape reverse(const Shape & sh)
 {
     return sh.get_reversed();
 }
 
-std::ostream & julie::la::operator<<(std::ostream & os, const Shape & sh)
+std::ostream & operator<<(std::ostream & os, const Shape & sh)
 {
-    os << '[';
+    os << '(';
     for (lint i = 0; i < sh.m_dim; ++i)
     {
         os << sh.m_data[i];
@@ -285,17 +335,17 @@ std::ostream & julie::la::operator<<(std::ostream & os, const Shape & sh)
             os << ", ";
         }
     }
-    os << ']';
+    os << ')';
 
     return os;
 }
 
-bool julie::la::Shape::CanDoMatMul(const Shape & left_sh, const Shape & right_sh)
+bool Shape::CanDoMatMul(const Shape & left_sh, const Shape & right_sh)
 {
     if (left_sh.m_dim < 2 || right_sh.m_dim < 2)
     {
         throw std::invalid_argument(std::string(
-            "DMatrix multiplication does not allow matrices of less than 2 dimensions.\n Please extend dimensions of matrices first."));
+            "Matrix_CPU multiplication does not allow matrices of less than 2 dimensions.\n Please extend dimensions of matrices first."));
     }
 
     // Check shape compatibilities between these 2 matrices
@@ -326,3 +376,7 @@ bool julie::la::Shape::CanDoMatMul(const Shape & left_sh, const Shape & right_sh
 
     return can_multiply;
 }
+
+
+} // namespace la
+} // namespace julie

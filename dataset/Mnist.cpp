@@ -80,7 +80,7 @@ inline std::unique_ptr<char[]> dataset::Mnist::read_mnist_file(const std::string
 }
 
 
-void dataset::Mnist::read_mnist_image_file(std::vector<julie::la::DMatrix<double>> & images, const std::string& path, lint limit) const
+void dataset::Mnist::read_mnist_image_file(std::vector<std::shared_ptr<julie::la::iMatrix<float>>> & images, const std::string& path, lint limit) const
 {
     auto buffer = this->read_mnist_file(path, 0x803);
 
@@ -105,14 +105,14 @@ void dataset::Mnist::read_mnist_image_file(std::vector<julie::la::DMatrix<double
 
         for (lint i = 0; i < count; ++i)
         {
-            julie::la::DMatrix<double> new_image{ julie::la::Shape{ rows, columns } };
+            julie::la::cpu::Matrix_CPU<float> new_image{ julie::la::Shape{ rows, columns } };
 
             for (lint j = 0; j < image_len; ++j)
             {
                 new_image.m_data[j] = image_buffer_p [j];
             }
 
-            images.push_back(new_image);
+            images.push_back(std::make_shared<julie::la::iMatrix<float>>(std::move(new_image)));
 
             image_buffer_p += image_len;
         }
@@ -120,7 +120,7 @@ void dataset::Mnist::read_mnist_image_file(std::vector<julie::la::DMatrix<double
 }
 
 
-void dataset::Mnist::read_mnist_label_file(std::vector<julie::la::DMatrix<double>> & labels, const std::string& path, lint limit) const
+void dataset::Mnist::read_mnist_label_file(std::vector<std::shared_ptr<julie::la::iMatrix<float>>> & labels, const std::string& path, lint limit) const
 {
     auto buffer = read_mnist_file(path, 0x801);
 
@@ -150,7 +150,7 @@ void dataset::Mnist::read_mnist_label_file(std::vector<julie::la::DMatrix<double
 
         for (lint i = 0; i < count; ++i)
         {
-            julie::la::DMatrix<double> label{ julie::la::Shape{ max_val + 1 } };
+            julie::la::cpu::Matrix_CPU<float> label{ julie::la::Shape{ max_val + 1 } };
             uint8_t label_val = *(label_buffer + i);
 
             for (uint8_t j = 0; j <= max_val; ++j)
@@ -167,7 +167,7 @@ void dataset::Mnist::read_mnist_label_file(std::vector<julie::la::DMatrix<double
                 }
             }
 
-            labels.push_back(label);
+            labels.push_back(std::make_shared<julie::la::iMatrix<float>>(std::move(label)));
         }
     }
 }
@@ -183,7 +183,9 @@ dataset::Mnist::Mnist(
 
 
 void dataset::Mnist::get_samples_and_labels(
-    std::vector<julie::la::DMatrix<double>>& inputs, std::vector<julie::la::DMatrix<double>>& labels, lint limit) const
+    std::vector<std::shared_ptr<julie::la::iMatrix<float>>> & inputs,
+    std::vector<std::shared_ptr<julie::la::iMatrix<float>>> & labels,
+    lint limit) const
 {
     this->read_mnist_image_file(inputs, this->m_sample_file, limit);
     this->read_mnist_label_file(labels, this->m_label_file, limit);

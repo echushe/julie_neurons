@@ -4,7 +4,7 @@
 #include <stdexcept>
 #include <chrono>
 
-typedef long long lint;
+typedef int64_t lint;
 namespace test
 {
     static lint get_time_in_milliseconds()

@@ -1,250 +1,238 @@
+/******************************************************************************
+ *             Copyright 2020 DeepFrame AI
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ ******************************************************************************/
+
+/******************************************************************************
+ * This is a sample program to construct and train a 2-layer fully connected
+ * neural network using the MNIST dataset.
+ * 
+ * To build and run this program, please download the MNIST dataset in advance.
+ ******************************************************************************/
+
 #pragma once
 
-#include "DMatrix.hpp"
+#include "iMatrix.hpp"
 #include "graph.hpp"
 #include "add.hpp"
 #include "matmul.hpp"
-#include "relu.hpp"
-#include "scale.hpp"
 #include "softmax.hpp"
-#include "sigmoid.hpp"
 #include "tanh.hpp"
-#include "arctan.hpp"
+#include "relu.hpp"
 #include "prelu.hpp"
-
 #include "Dataset.hpp"
 #include "Mnist.hpp"
-
 #include "softmax_crossentropy.hpp"
-#include "sigmoid_crossentropy.hpp"
-
 #include "sgd.hpp"
+
+#include <random>
 
 namespace demo
 {
 
-void fc_train_mnist()
+void fc_train_mnist(const std::string &dataset_dir)
 {
     std::cout << "====================== fc_train_mnist =====================" << std::endl;
+
+    // MatrixTypes:
+    // julie::CPU    Any calculation of this matrix type will run on CPU only
+    // julie::CUDA   Most calculations of this matrix type will run on nvidia GPU
+    // julie::la::CL     Most calculations of this matrix type will run via openCL API (still under development)
+    julie::MatrixType mat_type;
+#ifdef WITH_CUDA
+    mat_type = julie::CUDA;
+#else
+    mat_type = julie::CPU;
+#endif
+
     // ----------------------------------------------------------------- //
-    // --------------------- Load the MNIST data set ------------------- //
+    //                       Load the MNIST data set                     //
     // ----------------------------------------------------------------- //
 
-    std::string dataset_dir = "../../../dataset/";
+    // Buffers of training set
+    std::vector<std::shared_ptr<julie::la::iMatrix<float>>> train_set;
+    std::vector<std::shared_ptr<julie::la::iMatrix<float>>> train_label;
 
-    std::vector<julie::la::DMatrix<double>> train_set;
-    std::vector<julie::la::DMatrix<double>> train_label;
-
-    std::vector<julie::la::DMatrix<double>> val_set;
-    std::vector<julie::la::DMatrix<double>> val_label;
+    // Buffers of validation set
+    std::vector<std::shared_ptr<julie::la::iMatrix<float>>> val_set;
+    std::vector<std::shared_ptr<julie::la::iMatrix<float>>> val_label;
 
     std::shared_ptr<dataset::Dataset> train_set_getter = std::make_shared<dataset::Mnist>(
-        dataset_dir + "mnist/train-images-idx3-ubyte",
-        dataset_dir + "mnist/train-labels-idx1-ubyte");
+        dataset_dir + "/train-images-idx3-ubyte",
+        dataset_dir + "/train-labels-idx1-ubyte");
     
     std::shared_ptr<dataset::Dataset> val_set_getter = std::make_shared<dataset::Mnist>(
-        dataset_dir + "mnist/t10k-images-idx3-ubyte",
-        dataset_dir + "mnist/t10k-labels-idx1-ubyte");
+        dataset_dir + "/t10k-images-idx3-ubyte",
+        dataset_dir + "/t10k-labels-idx1-ubyte");
 
     train_set_getter->get_samples_and_labels(train_set, train_label);
     val_set_getter->get_samples_and_labels(val_set, val_label);
-
-    // ----------------------------------------------------------------- //
-    // ------------------ Buid the network structure ------------------- //
-    // ----------------------------------------------------------------- //
-
-    // Initialize weights
-
-    julie::la::DMatrix<double> w1_mat { julie::la::Shape {28 * 28, 50} };
-    julie::la::DMatrix<double> b1_mat { 0, julie::la::Shape {1, 50} };
-    w1_mat.gaussian_random(0, 0.1);
     
-    julie::la::DMatrix<double> w2_mat { julie::la::Shape {50, 50} };
-    julie::la::DMatrix<double> b2_mat { 0, julie::la::Shape {1, 50} };
-    w2_mat.gaussian_random(0, 0.1);
+    // ----------------------------------------------------------------- //
+    //                Initialize tensors and scalars                     //
+    // ----------------------------------------------------------------- //
 
-    julie::la::DMatrix<double> w3_mat { julie::la::Shape {50, 40} };
-    julie::la::DMatrix<double> b3_mat { 0, julie::la::Shape {1, 40} };
-    w3_mat.gaussian_random(0, 0.1);
+    // Initialize weights of the first layer
+    julie::la::iMatrix<float> W_1_mat { julie::la::Shape {28 * 28, 300}};
+    julie::la::iMatrix<float> B_1_mat { 0, julie::la::Shape {300}};
+    W_1_mat.gaussian_random(0, 0.1);
+    
+    // Initialize weights of the second layer
+    julie::la::iMatrix<float> W_2_mat { julie::la::Shape {300, 10}};
+    julie::la::iMatrix<float> B_2_mat { 0, julie::la::Shape {10}};
+    W_2_mat.gaussian_random(0, 0.1);
 
-    julie::la::DMatrix<double> w4_mat { julie::la::Shape {40, 10} };
-    julie::la::DMatrix<double> b4_mat { 0, julie::la::Shape {1, 10} };
-    w4_mat.gaussian_random(0, 0.1);
+    // Definition of the input tensor.
+    // It will be assigned with batches of training or validation samples later
+    auto x = std::make_shared<julie::nn::var::Tensor<float>> ();
+    // Definition of the target tensor.
+    // It will be assigned with batches of training or validation labels later
+    auto target = std::make_shared<julie::nn::var::Tensor<float>> ();
 
-    // Build the network structure
+    // Define trainable variables of the first layer and assign them with initial weights
+    auto W_1 = std::make_shared<julie::nn::var::Tensor<float>> (W_1_mat);
+    W_1->trainable(true);
+    auto B_1 = std::make_shared<julie::nn::var::Tensor<float>> (B_1_mat);
+    B_1->trainable(true);
+    // Alpha is a trainable scalar for the PReLU function
+    auto Alpha = std::make_shared<julie::nn::var::Scalar<float>> (0.0);
+    Alpha->trainable(true);
 
-    auto x = std::make_shared<julie::nn::var::Tensor<double>> ();
-    auto w1 = std::make_shared<julie::nn::var::Tensor<double>> (w1_mat);
-    w1->trainable(true);
-    auto b1 = std::make_shared<julie::nn::var::Tensor<double>> (b1_mat);
-    b1->trainable(true);
-    auto alpha1 = std::make_shared<julie::nn::var::Scalar<double>> (-0.3);
-    alpha1->trainable(true);
+    // Define trainable variables of the second layer and assign them with initial weights
+    auto W_2 = std::make_shared<julie::nn::var::Tensor<float>> (W_2_mat);
+    W_2->trainable(true);
+    auto B_2 = std::make_shared<julie::nn::var::Tensor<float>> (B_2_mat);
+    B_2->trainable(true);
 
-    auto matmul_1 = std::make_shared<julie::nn::func::MatMul> (x, w1);   
-    auto add_1 = std::make_shared<julie::nn::func::Add> (matmul_1->get_output(), b1);
-    // auto act_1 = std::make_shared<julie::nn::func::ArcTan> (add_1->get_output());
-    auto act_1 = std::make_shared<julie::nn::func::ReLU> (add_1->get_output());
+    // ----------------------------------------------------------------- //
+    //              Construct the first layer of network                 //
+    // ----------------------------------------------------------------- //
 
-    auto w2 = std::make_shared<julie::nn::var::Tensor<double>> (w2_mat);
-    w2->trainable(true);
-    auto b2 = std::make_shared<julie::nn::var::Tensor<double>> (b2_mat);
-    b2->trainable(true);
-    auto alpha2 = std::make_shared<julie::nn::var::Scalar<double>> (-0.3);
-    alpha2->trainable(true);
-
-    auto matmul_2 = std::make_shared<julie::nn::func::MatMul> (act_1->get_output(), w2);
-    auto add_2 = std::make_shared<julie::nn::func::Add> (matmul_2->get_output(), b2);
-    // auto act_2 = std::make_shared<julie::nn::func::ArcTan> (add_2->get_output());
-    auto act_2 = std::make_shared<julie::nn::func::ReLU> (add_2->get_output());
-
-    auto w3 = std::make_shared<julie::nn::var::Tensor<double>> (w3_mat);
-    w3->trainable(true);
-    auto b3 = std::make_shared<julie::nn::var::Tensor<double>> (b3_mat);
-    b3->trainable(true);
-    auto alpha3 = std::make_shared<julie::nn::var::Scalar<double>> (-0.3);
-    alpha3->trainable(true);
-
-    auto matmul_3 = std::make_shared<julie::nn::func::MatMul> (act_2->get_output(), w3);
-    auto add_3 = std::make_shared<julie::nn::func::Add> (matmul_3->get_output(), b3);
-    // auto act_3 = std::make_shared<julie::nn::func::ArcTan> (add_3->get_output());
-    auto act_3 = std::make_shared<julie::nn::func::ReLU> (add_3->get_output());
-
-    auto w4 = std::make_shared<julie::nn::var::Tensor<double>> (w4_mat);
-    w4->trainable(true);
-    auto b4 = std::make_shared<julie::nn::var::Tensor<double>> (b4_mat);
-    b4->trainable(true);
-
-    auto matmul_4 = std::make_shared<julie::nn::func::MatMul> (act_3->get_output(), w4);
-    auto add_4 = std::make_shared<julie::nn::func::Add> (matmul_4->get_output(), b4);
-    auto act_4 = std::make_shared<julie::nn::func::SoftMax> (add_4->get_output(), 1);
-
-    auto target = std::make_shared<julie::nn::var::Tensor<double>> ();
-    auto loss_func = std::make_shared<julie::nn::func::SoftMax_CrossEntropy> (add_4->get_output(), target, 1);
-
-    auto act_4_output = dynamic_cast<julie::nn::var::Tensor<double>*>(act_4->get_output().get());
-    auto loss = dynamic_cast<julie::nn::var::Tensor<double>*>(loss_func->get_output().get());
-
+    // The graph is a pool holding all functions and variables
     julie::op::Graph the_model_graph;
-    the_model_graph.new_function(matmul_1);
-    the_model_graph.new_function(add_1);
-    the_model_graph.new_function(act_1);
 
-    the_model_graph.new_function(matmul_2);
-    the_model_graph.new_function(add_2);
-    the_model_graph.new_function(act_2);
+    // Define function nodes of the first layer
+    auto matmul_1 = std::make_shared<julie::nn::func::MatMul> ();
+    auto add_1 = std::make_shared<julie::nn::func::Add> ();
+    auto act_1 = std::make_shared<julie::nn::func::PReLU> ();
 
-    the_model_graph.new_function(matmul_3);
-    the_model_graph.new_function(add_3);
-    the_model_graph.new_function(act_3);
-
-    the_model_graph.new_function(matmul_4);
-    the_model_graph.new_function(add_4);
-    the_model_graph.new_function(act_4);
-
-    the_model_graph.new_function(loss_func);
+    // Add function nodes with their inputs and outputs to the graph
+    the_model_graph.add_node(matmul_1, {x, W_1});
+    the_model_graph.add_node(add_1, {matmul_1->get_output(), B_1});
+    the_model_graph.add_node(act_1, {add_1->get_output(), Alpha});
 
     // ----------------------------------------------------------------- //
-    // ------------------ Prepair for the training --------------------- //
+    //              Construct the second layer of network                //
     // ----------------------------------------------------------------- //
 
-    the_model_graph.pave_backward_route(w1);
-    the_model_graph.pave_backward_route(b1);
-    the_model_graph.pave_backward_route(alpha1);
+    // Define function nodes of the second layer
+    auto matmul_2 = std::make_shared<julie::nn::func::MatMul> ();
+    auto add_2 = std::make_shared<julie::nn::func::Add> ();
+    auto act_2 = std::make_shared<julie::nn::func::SoftMax> (1);
 
-    the_model_graph.pave_backward_route(w2);
-    the_model_graph.pave_backward_route(b2);
-    the_model_graph.pave_backward_route(alpha2);
-
-    the_model_graph.pave_backward_route(w3);
-    the_model_graph.pave_backward_route(b3);
-    the_model_graph.pave_backward_route(alpha3);
-
-    the_model_graph.pave_backward_route(w4);
-    the_model_graph.pave_backward_route(b4);
+    // Add function nodes with their inputs and outputs to the graph
+    the_model_graph.add_node(matmul_2, {act_1->get_output(), W_2});
+    the_model_graph.add_node(add_2, {matmul_2->get_output(), B_2});
+    the_model_graph.add_node(act_2, {add_2->get_output()});
 
     // ----------------------------------------------------------------- //
-    // --------------------------- Training ---------------------------- //
+    //               Define loss function of the network                 //
+    // ----------------------------------------------------------------- //
+    
+    // The axis index this loss function will run on
+    lint axis_idx = 1;
+    // Definition of loss function needs axis index
+    // The 1st axis is batch dimension (index = 0),
+    // so the loss function should run on the 2nd axis (index = 1)
+    auto loss_func = std::make_shared<julie::nn::func::SoftMax_CrossEntropy> (axis_idx);
+
+    // Add the loss function to the graph, using add_2 output and target as inputs
+    the_model_graph.add_node(loss_func, {add_2->get_output(), target});
+
+    // Get the handle of softmax output
+    auto act_2_output = std::dynamic_pointer_cast<julie::nn::var::Tensor<float>>(act_2->get_output());
+    // Get the handle of loss
+    auto loss = std::dynamic_pointer_cast<julie::nn::var::Tensor<float>>(loss_func->get_output());
+
+    the_model_graph.add_input(x);
+    the_model_graph.set_device(mat_type);
+
+    std::cout << the_model_graph.to_string() << std::endl;
+
+    // ----------------------------------------------------------------- //
+    //                             Training                              //
     // ----------------------------------------------------------------- //
 
-    std::vector<std::shared_ptr<julie::op::Variable>> params_to_train;
-    params_to_train.push_back(w1);
-    params_to_train.push_back(b1);
-    params_to_train.push_back(alpha1);
-
-    params_to_train.push_back(w2);
-    params_to_train.push_back(b2);
-    params_to_train.push_back(alpha2);
-
-    params_to_train.push_back(w3);
-    params_to_train.push_back(b3);
-    params_to_train.push_back(alpha3);
-
-    params_to_train.push_back(w4);
-    params_to_train.push_back(b4);
-
-    std::cout << "---------------------- 5 ---------------------" << std::endl;
-
-    // Define the optimizer
-    julie::nn::opt::SGD optimizer {params_to_train, 0.001, 0.5};
+    // Define the optimizer with learning rate and momentum
+    julie::nn::opt::SGD optimizer {the_model_graph, 0.001, 0.7};
 
     // Define random generators
     std::uniform_int_distribution<lint> train_distribution{ 0, static_cast<lint>(train_set.size() - 1) };
     std::uniform_int_distribution<lint> val_distribution{ 0, static_cast<lint>(val_set.size() - 1) };
-
-    std::cout << "---------------------- 6 ---------------------" << std::endl;
+    std::default_random_engine rand_engine;
 
     lint train_batch_size = 256;
     lint val_batch_size = 1000;
 
-    for (lint itr  = 0; itr < 200; ++itr)
+    for (lint itr = 0; itr < 200; ++itr)
     {
+        // Make all nodes forward unvisited
         the_model_graph.clear_forwards();
+        // Make all nodes backward unvisited
+        the_model_graph.clear_backwards();
 
-        std::vector<julie::la::DMatrix<double>> x_batch;
-        std::vector<julie::la::DMatrix<double>> t_batch;
+        std::vector<std::shared_ptr<julie::la::iMatrix<float>>> x_batch;
+        std::vector<std::shared_ptr<julie::la::iMatrix<float>>> t_batch;
 
+        // Use the random selector to create a list of X and a list of targets
         for (lint itr = 0; itr < train_batch_size; ++itr)
         {
-            lint index = train_distribution(julie::la::global::global_rand_engine);
+            lint index = train_distribution(rand_engine);
+
             x_batch.push_back(train_set[index]);
             t_batch.push_back(train_label[index]);
         }
         
-        julie::la::DMatrix<double> x_mat {x_batch};
-        julie::la::DMatrix<double> t_mat {t_batch};
+        // Convert the list of X and the list of targets into atomic batches (matrices)
+        julie::la::iMatrix<float> x_mat {x_batch}; x_mat.set_matrix_type(mat_type);
+        julie::la::iMatrix<float> t_mat {t_batch}; t_mat.set_matrix_type(mat_type);
 
+        // Reshape X batch and target batch into compatible shapes that the network can accept
         x_mat.normalize().reshape(julie::la::Shape {train_batch_size, 28 * 28});
         t_mat.reshape(julie::la::Shape {train_batch_size, 10});
 
-        // std::cout << "---------------------- 7 ---------------------" << std::endl;
-        // std::cout << x_mat << std::endl;
+        // Assign X batch and target batch to x node and target node
+        x->val(x_mat);
+        target->val(t_mat);
+
+        // Execute forward commands to the graph
+        // Each forward command requires a function node as its endpoint
+        the_model_graph.forward(loss_func->get_output());
+        the_model_graph.forward(act_2->get_output());
         
-        // std::cout << "The index is: " << index << std::endl; 
+        // Execute backward command to the gragh
+        // Like forward commands, each backward command needs a function node
+        // as its endpoint as well
+        the_model_graph.backward();
 
-        dynamic_cast<julie::nn::var::Tensor<double>*>(x.get())->val( x_mat );
-        dynamic_cast<julie::nn::var::Tensor<double>*>(target.get())->val( t_mat );
-
-        // std::cout << "---------------------- 8 ---------------------" << std::endl;
-
-        the_model_graph.func_forward(loss_func);
-
-        the_model_graph.func_forward(act_4);
-        
-        // std::cout << "---------------------- 9 ---------------------" << std::endl;
-        
-        the_model_graph.func_backward(matmul_1);
-
-        // std::cout << "---------------------- 11 ---------------------" << std::endl;
-
-
-
-        auto pred_batch = act_4_output->val()->get_collapsed(0);
-        double right = 0;
+        auto pred_batch = act_2_output->val()->argmax(1);
+        auto targets    = t_mat.argmax(1);
+        float right = 0;
 
         for (size_t i = 0; i < pred_batch.size(); ++i)
         {
-            if (pred_batch[i].argmax().index() == t_batch[i].argmax().index())
+            if (pred_batch[i][1] == targets[i][1])
             {
                 right += 1.0;
             }
@@ -252,58 +240,62 @@ void fc_train_mnist()
 
         std::cout << "Train Accuracy: " << right / train_batch_size << std::endl;
 
-
-
         // Update the weights
         optimizer.step();
-        the_model_graph.clear_forwards();
-        the_model_graph.clear_backwards();
 
+        // Do validation for each 100 training iterations
         if ((itr + 1)% 100 == 0)
         {
-            lint index = val_distribution(julie::la::global::global_rand_engine);
+            // Make all nodes forward unvisited
+            the_model_graph.clear_forwards();
+            // Make all nodes backward unvisited
+            the_model_graph.clear_backwards();
 
             x_batch.clear();
             t_batch.clear();
 
-            for (lint itr = 0; itr < val_batch_size; ++itr)
+            // Use the random selector to create a list of X and a list of targets
+            for (lint i = 0; i < val_batch_size; ++i)
             {
-                lint index = val_distribution(julie::la::global::global_rand_engine);
+                lint index = val_distribution(rand_engine);
+
                 x_batch.push_back(val_set[index]);
                 t_batch.push_back(val_label[index]);
             }
 
-            julie::la::DMatrix<double> x_mat {x_batch};
-            julie::la::DMatrix<double> t_mat {t_batch};
+            // Convert the list of X and the list of targets into atomic batches (matrices)
+            julie::la::iMatrix<float> x_mat {x_batch}; x_mat.set_matrix_type(mat_type);
+            julie::la::iMatrix<float> t_mat {t_batch}; t_mat.set_matrix_type(mat_type);
 
+            // Reshape X batch and target batch into compatible shapes that the network can accept
             x_mat.normalize().reshape(julie::la::Shape {val_batch_size, 28 * 28});
             t_mat.reshape(julie::la::Shape {val_batch_size, 10});
 
-            dynamic_cast<julie::nn::var::Tensor<double>*>(x.get())->val( x_mat );
-            dynamic_cast<julie::nn::var::Tensor<double>*>(target.get())->val( t_mat );
+            // Assign X batch and target batch to x node and target node
+            x->val( x_mat );
+            target->val( t_mat );
             
-            the_model_graph.func_forward(act_4);
+            // Execute forward command to the graph
+            // Each forward command requires a function node as its endpoint
+            the_model_graph.forward(act_2->get_output());
 
-            auto pred_batch = act_4_output->val()->get_collapsed(0);
-            double right = 0;
+            auto pred_batch = act_2_output->val()->argmax(1);
+            auto targets    = t_mat.argmax(1);
+            float right = 0;
 
             for (size_t i = 0; i < pred_batch.size(); ++i)
             {
-                if (pred_batch[i].argmax().index() == t_batch[i].argmax().index())
+                if (pred_batch[i][1] == targets[i][1])
                 {
                     right += 1.0;
                 }
             }
 
             std::cout << "Itr: " << itr << " ============================== " << std::endl;
-            // std::cout << "alpha1: " << *(alpha1->val()) << std::endl;
-            // std::cout << "alpha2: " << *(alpha2->val()) << std::endl;
-            // std::cout << "alpha3: " << *(alpha3->val()) << std::endl;
+            std::cout << "Alpha: " << *(Alpha->val()) << std::endl;
             std::cout << "Itr: " << itr << " ========== Test Accuracy: " << right / val_batch_size << std::endl;
         }
     }
-
-    
 }
 
 } // namespace demo

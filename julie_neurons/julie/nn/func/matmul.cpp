@@ -1,81 +1,127 @@
+/******************************************************************************
+ *             Copyright 2020 DeepFrame AI
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ ******************************************************************************/
+
 #include "matmul.hpp"
+#include "iMatrix_func.hpp"
 
+namespace julie
+{
+namespace nn
+{
+namespace func
+{
 
-julie::nn::func::MatMul::MatMul(const std::shared_ptr<op::Variable> & l_ptr, const std::shared_ptr<op::Variable> & r_ptr)
+MatMul::MatMul()
     :
-    op::Function {}
+    op::Function {std::string {"MatMul"}, false}
 {
-    // double var = static_cast<double>(100) / w_mat.shape().size();
-    // w_mat.gaussian_random(0, var);
-
-    this->m_inputs.push_back(l_ptr);
-    this->m_inputs.push_back(r_ptr);
-
-    l_ptr->add_receiver(this);
-    r_ptr->add_receiver(this);
-
-    this->m_output = std::make_shared<var::Tensor<double>> ();
-    this->m_output->set_provider(this);
+    this->m_output = std::make_shared<var::Tensor<float>> ();
 }
 
-julie::nn::func::MatMul::MatMul(const MatMul & other)
+MatMul::MatMul(const MatMul & other)
     : op::Function {other}
-{}
+{
+    this->m_output = std::make_shared<var::Tensor<float>> ();
+}
 
-julie::nn::func::MatMul::MatMul(MatMul && other)
+MatMul::MatMul(MatMul && other)
     : op::Function {other}
-{}
+{
+    this->m_output = std::make_shared<var::Tensor<float>> ();
+}
 
-julie::nn::func::MatMul & julie::nn::func::MatMul::operator = (const MatMul & other)
+MatMul & MatMul::operator = (const MatMul & other)
 {
     op::Function::operator = (other);
 
     return *this;
 }
 
-julie::nn::func::MatMul & julie::nn::func::MatMul::operator = (MatMul && other)
+MatMul & MatMul::operator = (MatMul && other)
 {
     op::Function::operator = (other);
 
     return *this;
 }
 
-void julie::nn::func::MatMul::forward()
+void MatMul::set_inputs(const std::shared_ptr<op::Function> & self, 
+                                    const std::vector<std::shared_ptr<op::Variable>> & inputs)
 {
-    var::Tensor<double> *l_ptr = dynamic_cast<var::Tensor<double>*>(this->m_inputs[0].get());
-    var::Tensor<double> *r_ptr = dynamic_cast<var::Tensor<double>*>(this->m_inputs[1].get());
-
-    std::shared_ptr<la::DMatrix<double>> l_mat_ptr = l_ptr->val();
-    std::shared_ptr<la::DMatrix<double>> r_mat_ptr = r_ptr->val();
-
-    var::Tensor<double> *output_ptr = dynamic_cast<var::Tensor<double>*>(this->m_output.get());
-    output_ptr->val(la::matmul(*l_mat_ptr, *r_mat_ptr));
-}
-
-void julie::nn::func::MatMul::backward()
-{
-    var::Tensor<double> *output_ptr = dynamic_cast<var::Tensor<double>*>(this->m_output.get());
-    std::shared_ptr<la::DMatrix<double>> out_grad = output_ptr->grad();
-
-    var::Tensor<double> *l_ptr = dynamic_cast<var::Tensor<double>*>(this->m_inputs[0].get());
-    var::Tensor<double> *r_ptr = dynamic_cast<var::Tensor<double>*>(this->m_inputs[1].get());
-
-    std::shared_ptr<la::DMatrix<double>> l_mat_ptr = l_ptr->val();
-    std::shared_ptr<la::DMatrix<double>> r_mat_ptr = r_ptr->val();
-
-    // std::cout << *l_mat_ptr << std::endl;
-    // std::cout << *r_mat_ptr << std::endl;
-    // std::cout << *out_grad << std::endl;
-
-    if (l_ptr->needs_grad())
+    if (inputs.size() != 2)
     {
-        // Do chain rule for left hand side
-        l_ptr->grad(la::matmul(*out_grad, r_mat_ptr->get_transpose(r_mat_ptr->shape().dim() - 1)));
+        throw std::invalid_argument(std::string("Number of inputs for MatMul operation is not 2"));
     }
 
-    if (r_ptr->needs_grad())
-    {
-        // Do chain rule for right hand side
-        r_ptr->grad(la::matmul(l_mat_ptr->get_transpose(1), *out_grad));
-    }
+    op::Function::set_inputs(self, inputs);
 }
+
+void MatMul::forward()
+{
+    var::Tensor<float> *l_ptr = dynamic_cast<var::Tensor<float>*>(this->m_inputs[0].get());
+    var::Tensor<float> *r_ptr = dynamic_cast<var::Tensor<float>*>(this->m_inputs[1].get());
+
+    std::shared_ptr<julie::la::iMatrix<float>> l_mat_ptr = l_ptr->val();
+    std::shared_ptr<julie::la::iMatrix<float>> r_mat_ptr = r_ptr->val();
+
+    if (l_mat_ptr->shape().dim() != 2 || r_mat_ptr->shape().dim() != 2)
+    {
+        throw std::invalid_argument{ std::string{"MatMul operation: All matrices should be 2-dimensional in "} + std::string{__FUNCTION__} };
+    }
+
+    var::Tensor<float> *output_ptr = dynamic_cast<var::Tensor<float>*>(this->m_output.get());
+
+    julie::la::matmul(*(output_ptr->val()), *l_mat_ptr, *r_mat_ptr, 1, 1);
+}
+
+void MatMul::backward()
+{
+    var::Tensor<float> *output_ptr = dynamic_cast<var::Tensor<float>*>(this->m_output.get());
+    std::shared_ptr<julie::la::iMatrix<float>> out_grad = output_ptr->grad();
+
+    var::Tensor<float> *l_ptr = dynamic_cast<var::Tensor<float>*>(this->m_inputs[0].get());
+    var::Tensor<float> *r_ptr = dynamic_cast<var::Tensor<float>*>(this->m_inputs[1].get());
+
+    std::shared_ptr<julie::la::iMatrix<float>> l_mat_ptr = l_ptr->val();
+    std::shared_ptr<julie::la::iMatrix<float>> r_mat_ptr = r_ptr->val();
+
+    if (l_mat_ptr->shape().dim() != 2 || r_mat_ptr->shape().dim() != 2)
+    {
+        throw std::invalid_argument{ std::string{"MatMul operation: All matrices should be 2-dimensional in "} + std::string{__FUNCTION__} };
+    }
+
+    // Do chain rule for left hand side
+    julie::la::transpose(this->m_right_transpose_cache, *r_mat_ptr, 1);
+    julie::la::matmul(this->m_left_grad_cache, *out_grad, this->m_right_transpose_cache, 1, 1);
+    l_ptr->add_grad(this->m_left_grad_cache);
+
+    // Do chain rule for right hand side
+    julie::la::transpose(this->m_left_transpose_cache, *l_mat_ptr, 1);
+    julie::la::matmul(this->m_right_grad_cache, this->m_left_transpose_cache, *out_grad, 1, 1);
+    r_ptr->add_grad(this->m_right_grad_cache);
+}
+
+void MatMul::clear_cache()
+{
+    this->m_left_transpose_cache = julie::la::iMatrix<float> {};
+    this->m_left_grad_cache = julie::la::iMatrix<float> {};
+
+    this->m_right_transpose_cache = julie::la::iMatrix<float> {};
+    this->m_right_grad_cache = julie::la::iMatrix<float> {};
+}
+
+} // namespace func
+} // namespace nn
+} // namespace julie

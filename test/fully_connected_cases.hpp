@@ -1,6 +1,7 @@
 #pragma once
 
-#include "DMatrix.hpp"
+#include "iMatrix.hpp"
+#include "iMatrix_func.hpp"
 #include "graph.hpp"
 #include "add.hpp"
 #include "matmul.hpp"
@@ -27,7 +28,7 @@ void forward_fc_simple()
 {
     std::cout << "====================== forward_fc_simple =====================" << std::endl;
     std::cout << "---------------------- 1 ---------------------" << std::endl;
-    julie::la::DMatrix<double> w1_mat {
+    julie::la::iMatrix<float> w1_mat {
         {
             {4, 3},
             {2, 1},
@@ -36,71 +37,72 @@ void forward_fc_simple()
     };
 
     std::cout << "---------------------- 2 ---------------------" << std::endl;
-    julie::la::DMatrix<double> b1_mat {
+    julie::la::iMatrix<float> b1_mat {
         {3, -4},
         true
     };
 
-    auto x = std::make_shared<julie::nn::var::Tensor<double>> ();
-    auto w1 = std::make_shared<julie::nn::var::Tensor<double>> (w1_mat);
-    auto b1 = std::make_shared<julie::nn::var::Tensor<double>> (b1_mat);
+    auto x = std::make_shared<julie::nn::var::Tensor<float>> ();
+    auto w1 = std::make_shared<julie::nn::var::Tensor<float>> (w1_mat);
+    auto b1 = std::make_shared<julie::nn::var::Tensor<float>> (b1_mat);
 
     std::cout << "---------------------- 3 ---------------------" << std::endl;
 
     // x->needs_grad(false);
     // w->needs_grad(false);
 
-    auto matmul_1 = std::make_shared<julie::nn::func::MatMul> (x, w1);
+    auto matmul_1 = std::make_shared<julie::nn::func::MatMul> ();
 
     std::cout << "---------------------- 31 ---------------------" << std::endl;
     
-    auto add_1 = std::make_shared<julie::nn::func::Add> (matmul_1->get_output(), b1);
+    auto add_1 = std::make_shared<julie::nn::func::Add> ();
 
     std::cout << "---------------------- 32 ---------------------" << std::endl;
 
-    auto act_1 = std::make_shared<julie::nn::func::ReLU> (add_1->get_output());
+    auto act_1 = std::make_shared<julie::nn::func::ReLU> ();
 
     std::cout << "---------------------- 4 ---------------------" << std::endl;
 
-    julie::la::DMatrix<double> w2_mat {
-        {
-            {0, 1},
-            {2, 3}
-        }
+    julie::la::iMatrix<float> w2_mat {
+        std::vector<float>{
+            0, 1,
+            2, 3
+        },
+        julie::la::Shape{2, 2}
     };
 
-    julie::la::DMatrix<double> b2_mat {
+    julie::la::iMatrix<float> b2_mat {
         {-1, 2},
         true
     };
 
     std::cout << "---------------------- 5 ---------------------" << std::endl;
 
-    auto w2 = std::make_shared<julie::nn::var::Tensor<double>> (w2_mat);
-    auto b2 = std::make_shared<julie::nn::var::Tensor<double>> (b2_mat);
+    auto w2 = std::make_shared<julie::nn::var::Tensor<float>> (w2_mat);
+    auto b2 = std::make_shared<julie::nn::var::Tensor<float>> (b2_mat);
 
-    auto matmul_2 = std::make_shared<julie::nn::func::MatMul> (act_1->get_output(), w2);
+    auto matmul_2 = std::make_shared<julie::nn::func::MatMul> ();
 
-    auto add_2 = std::make_shared<julie::nn::func::Add> (matmul_2->get_output(), b2);
+    auto add_2 = std::make_shared<julie::nn::func::Add> ();
 
-    auto act_2 = std::make_shared<julie::nn::func::SoftMax> (add_2->get_output(), 1);
+    auto act_2 = std::make_shared<julie::nn::func::SoftMax> (1);
     
-    auto act_2_output = dynamic_cast<julie::nn::var::Tensor<double>*>(act_2->get_output().get());
+    auto act_2_output = dynamic_cast<julie::nn::var::Tensor<float>*>(act_2->get_output().get());
 
     std::cout << "---------------------- 6 ---------------------" << std::endl;
 
     julie::op::Graph the_model_graph;
-    the_model_graph.new_function(matmul_1);
-    the_model_graph.new_function(add_1);
-    the_model_graph.new_function(act_1);
-    the_model_graph.new_function(matmul_2);
-    the_model_graph.new_function(add_2);
-    the_model_graph.new_function(act_2);
+    the_model_graph.add_node(matmul_1, {x, w1});
+    the_model_graph.add_node(add_1, {matmul_1->get_output(), b1});
+    the_model_graph.add_node(act_1, {add_1->get_output()});
+    the_model_graph.add_node(matmul_2, {act_1->get_output(), w2});
+    the_model_graph.add_node(add_2, {matmul_2->get_output(), b2});
+    the_model_graph.add_node(act_2, {add_2->get_output()});
 
     std::cout << "---------------------- 7 ---------------------" << std::endl;
 
-    dynamic_cast<julie::nn::var::Tensor<double>*>(x.get())->val(
-        julie::la::DMatrix<double> {
+    dynamic_cast<julie::nn::var::Tensor<float>*>(x.get())->val(
+        julie::la::iMatrix<float> {
         {
             { 1, 0, 1},
             { 2, 1, 0},
@@ -110,7 +112,7 @@ void forward_fc_simple()
 
     std::cout << "---------------------- 8 ---------------------" << std::endl;
 
-    the_model_graph.func_forward(act_2);
+    the_model_graph.forward(act_2->get_output());
 
     std::cout << "---------------------- 9 ---------------------" << std::endl;
     
@@ -121,24 +123,30 @@ void forward_fc_simple()
 
     std::cout << "---------------------- 10 ---------------------" << std::endl;
 
-    auto matmul_1_mat = julie::la::matmul(*(dynamic_cast<julie::nn::var::Tensor<double>*>(x.get())->val()), w1_mat);
-    auto add_1_mat = julie::la::broadcast_add(matmul_1_mat, b1_mat);
+    julie::la::iMatrix<float> matmul_1_mat;
+    julie::la::matmul(matmul_1_mat, *(dynamic_cast<julie::nn::var::Tensor<float>*>(x.get())->val()), w1_mat);
+    
+    julie::la::iMatrix<float> add_1_mat;
+    julie::la::broadcast_add(add_1_mat, matmul_1_mat, b1_mat);
 
     std::cout << "---------------------- 11 ---------------------" << std::endl;
 
-    julie::la::ReLU<double> relu;
-    julie::la::DMatrix<double> act_1_mat;
+    julie::la::ReLU<float> relu;
+    julie::la::iMatrix<float> act_1_mat;
     relu(act_1_mat, add_1_mat);
 
     std::cout << "---------------------- 12 ---------------------" << std::endl;
 
-    auto matmul_2_mat = julie::la::matmul(act_1_mat, w2_mat);
-    auto add_2_mat = julie::la::broadcast_add(matmul_2_mat, b2_mat);
+    julie::la::iMatrix<float> matmul_2_mat;
+    julie::la::matmul(matmul_2_mat, act_1_mat, w2_mat);
+
+    julie::la::iMatrix<float> add_2_mat;
+    julie::la::broadcast_add(add_2_mat, matmul_2_mat, b2_mat);
 
     std::cout << "---------------------- 13 ---------------------" << std::endl;
 
-    julie::la::Softmax<double> softmax(1);
-    julie::la::DMatrix<double> softmax_mat;
+    julie::la::SoftMax<float> softmax(1);
+    julie::la::iMatrix<float> softmax_mat;
     softmax(softmax_mat, add_2_mat);
 
     std::cout << "---------------------- 14 ---------------------" << std::endl;
@@ -155,7 +163,7 @@ void forward_fc_simple()
 void forward_and_backward_fc_simple()
 {
     std::cout << "====================== forward_and_backward_fc_simple =====================" << std::endl;
-    julie::la::DMatrix<double> w1_mat {
+    julie::la::iMatrix<float> w1_mat {
         {
             {4, 3},
             {2, 1},
@@ -163,64 +171,65 @@ void forward_and_backward_fc_simple()
         }
     };
 
-    julie::la::DMatrix<double> b1_mat {
+    julie::la::iMatrix<float> b1_mat {
         {3, -4},
         true
     };
 
-    auto x = std::make_shared<julie::nn::var::Tensor<double>> ();
-    auto w1 = std::make_shared<julie::nn::var::Tensor<double>> (w1_mat);
+    auto x = std::make_shared<julie::nn::var::Tensor<float>> ();
+    auto w1 = std::make_shared<julie::nn::var::Tensor<float>> (w1_mat);
     w1->trainable(true);
-    auto b1 = std::make_shared<julie::nn::var::Tensor<double>> (b1_mat);
+    auto b1 = std::make_shared<julie::nn::var::Tensor<float>> (b1_mat);
     b1->trainable(true);
 
     // x->needs_grad(false);
     // w->needs_grad(false);
 
-    auto matmul_1 = std::make_shared<julie::nn::func::MatMul> (x, w1);   
-    auto add_1 = std::make_shared<julie::nn::func::Add> (matmul_1->get_output(), b1);
-    auto act_1 = std::make_shared<julie::nn::func::ReLU> (add_1->get_output());
+    auto matmul_1 = std::make_shared<julie::nn::func::MatMul> ();   
+    auto add_1 = std::make_shared<julie::nn::func::Add> ();
+    auto act_1 = std::make_shared<julie::nn::func::ReLU> ();
 
-    julie::la::DMatrix<double> w2_mat {
-        {
-            {0, 1},
-            {2, 3}
-        }
+    julie::la::iMatrix<float> w2_mat {
+        std::vector<float>{
+            0, 1,
+            2, 3
+        },
+        julie::la::Shape{2, 2}
     };
 
-    julie::la::DMatrix<double> b2_mat {
+    julie::la::iMatrix<float> b2_mat {
         {-1, 2},
         true
     };
 
-    auto w2 = std::make_shared<julie::nn::var::Tensor<double>> (w2_mat);
+    auto w2 = std::make_shared<julie::nn::var::Tensor<float>> (w2_mat);
     w2->trainable(true);
-    auto b2 = std::make_shared<julie::nn::var::Tensor<double>> (b2_mat);
+    auto b2 = std::make_shared<julie::nn::var::Tensor<float>> (b2_mat);
     b2->trainable(true);
 
-    auto matmul_2 = std::make_shared<julie::nn::func::MatMul> (act_1->get_output(), w2);
-    auto add_2 = std::make_shared<julie::nn::func::Add> (matmul_2->get_output(), b2);
-    auto act_2 = std::make_shared<julie::nn::func::SoftMax> (add_2->get_output(), 1);
+    auto matmul_2 = std::make_shared<julie::nn::func::MatMul> ();
+    auto add_2 = std::make_shared<julie::nn::func::Add> ();
+    auto act_2 = std::make_shared<julie::nn::func::SoftMax> (1);
 
-    auto target = std::make_shared<julie::nn::var::Tensor<double>> ();
-    auto loss_func = std::make_shared<julie::nn::func::SoftMax_CrossEntropy> (add_2->get_output(), target, 1);
+    auto target = std::make_shared<julie::nn::var::Tensor<float>> ();
+    auto loss_func = std::make_shared<julie::nn::func::SoftMax_CrossEntropy> (1);
 
     julie::op::Graph the_model_graph;
-    the_model_graph.new_function(matmul_1);
-    the_model_graph.new_function(add_1);
-    the_model_graph.new_function(act_1);
-    the_model_graph.new_function(matmul_2);
-    the_model_graph.new_function(add_2);
-    the_model_graph.new_function(act_2);
-    the_model_graph.new_function(loss_func);
+    the_model_graph.add_node(matmul_1, {x, w1});
+    the_model_graph.add_node(add_1, {matmul_1->get_output(), b1});
+    the_model_graph.add_node(act_1, {add_1->get_output()});
+    the_model_graph.add_node(matmul_2, {act_1->get_output(), w2});
+    the_model_graph.add_node(add_2, {matmul_2->get_output(), b2});
+    the_model_graph.add_node(act_2, {add_2->get_output()});
+    the_model_graph.add_node(loss_func, {add_2->get_output(), target});
 
-    the_model_graph.pave_backward_route(w1);
-    the_model_graph.pave_backward_route(b1);
-    the_model_graph.pave_backward_route(w2);
-    the_model_graph.pave_backward_route(b2);
+    //the_model_graph.pave_backward_route(w1);
+    //the_model_graph.pave_backward_route(b1);
+    //the_model_graph.pave_backward_route(w2);
+    //the_model_graph.pave_backward_route(b2);
 
-    dynamic_cast<julie::nn::var::Tensor<double>*>(x.get())->val(
-        julie::la::DMatrix<double> {
+    dynamic_cast<julie::nn::var::Tensor<float>*>(x.get())->val(
+        julie::la::iMatrix<float> {
         {
             { 1, 0, 1},
             { 2, 1, 0},
@@ -228,8 +237,8 @@ void forward_and_backward_fc_simple()
         }}
     );
 
-    dynamic_cast<julie::nn::var::Tensor<double>*>(target.get())->val(
-        julie::la::DMatrix<double> {
+    dynamic_cast<julie::nn::var::Tensor<float>*>(target.get())->val(
+        julie::la::iMatrix<float> {
         {
             {1, 0},
             {0, 1},
@@ -239,25 +248,25 @@ void forward_and_backward_fc_simple()
 
     std::cout << "---------------------- 16 ---------------------" << std::endl;
 
-    the_model_graph.func_forward(act_2);
+    the_model_graph.forward(act_2->get_output());
 
     std::cout << "---------------------- 17 ---------------------" << std::endl;
-    the_model_graph.func_forward(loss_func);
+    the_model_graph.forward(loss_func->get_output());
 
     std::cout << "---------------------- 18 ---------------------" << std::endl;
-    the_model_graph.func_backward(matmul_1);
+    the_model_graph.backward(w1);
 
     std::cout << "---------------------- 19 ---------------------" << std::endl;
 
     
-    auto act_2_output = dynamic_cast<julie::nn::var::Tensor<double>*>(act_2->get_output().get());
+    auto act_2_output = dynamic_cast<julie::nn::var::Tensor<float>*>(act_2->get_output().get());
     if (act_2_output->val())
     {
         std::cout << "act_2 output data:" << std::endl;
         std::cout << *(act_2_output->val()) << std::endl;
     }
 
-    auto add_2_output = dynamic_cast<julie::nn::var::Tensor<double>*>(add_2->get_output().get());
+    auto add_2_output = dynamic_cast<julie::nn::var::Tensor<float>*>(add_2->get_output().get());
     if (add_2_output->val())
     {
         std::cout << "add_2 output data:" << std::endl;
@@ -265,14 +274,14 @@ void forward_and_backward_fc_simple()
         std::cout << *(add_2_output->grad()) << std::endl;
     }
 
-    if (w1->has_grad())
+    if (w1->backward_visited())
     {
         std::cout << "grad of w1 and b1:" << std::endl;
         std::cout << *(w1->grad()) << std::endl;
         std::cout << *(b1->grad()) << std::endl;
     }
 
-    if (w2->has_grad())
+    if (w2->backward_visited())
     {
         std::cout << "grad of w2 and b2:" << std::endl;
         std::cout << *(w2->grad()) << std::endl;
@@ -284,9 +293,6 @@ void test_of_fc_model()
 {
     forward_fc_simple();
     forward_and_backward_fc_simple();
-
-    // fc_train_mnist();
-    
 }
 
 } // namespace test

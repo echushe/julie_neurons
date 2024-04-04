@@ -1,87 +1,131 @@
+/******************************************************************************
+ *             Copyright 2020 DeepFrame AI
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ ******************************************************************************/
+
 #include "add.hpp"
+#include "iMatrix_func.hpp"
 
+namespace julie
+{
+namespace nn
+{
+namespace func
+{
 
-julie::nn::func::Add::Add(const std::shared_ptr<op::Variable> & l_ptr, const std::shared_ptr<op::Variable> & r_ptr)
+Add::Add()
     :
-    op::Function {}
+    op::Function {std::string {"Add"}, false}
 {
-    // double var = static_cast<double>(100) / w_mat.shape().size();
-    // w_mat.gaussian_random(0, var);
-
-    this->m_inputs.push_back(l_ptr);
-    this->m_inputs.push_back(r_ptr);
-
-    l_ptr->add_receiver(this);
-    r_ptr->add_receiver(this);
-
-    this->m_output = std::make_shared<var::Tensor<double>> ();
-    this->m_output->set_provider(this);
+    this->m_output = std::make_shared<var::Tensor<float>> ();
 }
 
-julie::nn::func::Add::Add(const Add & other)
+Add::Add(const Add & other)
     : op::Function {other}
-{}
+{
+    this->m_output = std::make_shared<var::Tensor<float>> ();
+}
 
-julie::nn::func::Add::Add(Add && other)
+Add::Add(Add && other)
     : op::Function {other}
-{}
+{
+    this->m_output = std::make_shared<var::Tensor<float>> ();
+}
 
-julie::nn::func::Add & julie::nn::func::Add::operator = (const Add & other)
+Add & Add::operator = (const Add & other)
 {
     op::Function::operator = (other);
 
     return *this;
 }
 
-julie::nn::func::Add & julie::nn::func::Add::operator = (Add && other)
+Add & Add::operator = (Add && other)
 {
     op::Function::operator = (other);
 
     return *this;
 }
 
-void julie::nn::func::Add::forward()
+void Add::set_inputs(const std::shared_ptr<op::Function> & self, 
+                                    const std::vector<std::shared_ptr<op::Variable>> & inputs)
 {
-    var::Tensor<double> *l_ptr = dynamic_cast<var::Tensor<double>*>(this->m_inputs[0].get());
-    var::Tensor<double> *r_ptr = dynamic_cast<var::Tensor<double>*>(this->m_inputs[1].get());
-
-    std::shared_ptr<la::DMatrix<double>> l_mat_ptr = l_ptr->val();
-    std::shared_ptr<la::DMatrix<double>> r_mat_ptr = r_ptr->val();
-
-    var::Tensor<double> *output_ptr = dynamic_cast<var::Tensor<double>*>(this->m_output.get());
-    output_ptr->val(la::broadcast_add(*l_mat_ptr, *r_mat_ptr));
-}
-
-void julie::nn::func::Add::backward()
-{
-    var::Tensor<double> *output_ptr = dynamic_cast<var::Tensor<double>*>(this->m_output.get());
-    std::shared_ptr<la::DMatrix<double>> out_grad = output_ptr->grad();
-
-    var::Tensor<double> *l_ptr = dynamic_cast<var::Tensor<double>*>(this->m_inputs[0].get());
-    var::Tensor<double> *r_ptr = dynamic_cast<var::Tensor<double>*>(this->m_inputs[1].get());
-
-    // std::cout << *out_grad << std::endl;
-
-    if (l_ptr->needs_grad())
+    if (inputs.size() != 2)
     {
-        // Do chain rule for left hand side
-        l_ptr->grad(*out_grad);
+        throw std::invalid_argument(std::string("Number of inputs for add operation is not 2"));
     }
 
-    if (r_ptr->needs_grad())
-    {
-        std::shared_ptr<la::DMatrix<double>> r_mat_ptr = r_ptr->val();
-        lint r_mat_size = r_mat_ptr->shape().size();
+    op::Function::set_inputs(self, inputs);
+}
 
-        la::DMatrix<double> fused = *out_grad;
-        while (fused.shape().size() > r_mat_size)
+void Add::forward()
+{
+    var::Tensor<float> *l_ptr = dynamic_cast<var::Tensor<float>*>(this->m_inputs[0].get());
+    var::Tensor<float> *r_ptr = dynamic_cast<var::Tensor<float>*>(this->m_inputs[1].get());
+
+    std::shared_ptr<julie::la::iMatrix<float>> l_mat_ptr = l_ptr->val();
+    std::shared_ptr<julie::la::iMatrix<float>> r_mat_ptr = r_ptr->val();
+
+    var::Tensor<float> *output_ptr = dynamic_cast<var::Tensor<float>*>(this->m_output.get());
+    
+    julie::la::broadcast_add(*(output_ptr->val()), *l_mat_ptr, *r_mat_ptr);
+}
+
+void Add::backward()
+{
+    var::Tensor<float> *output_ptr = dynamic_cast<var::Tensor<float>*>(this->m_output.get());
+    std::shared_ptr<julie::la::iMatrix<float>> out_grad = output_ptr->grad();
+
+    var::Tensor<float> *l_ptr = dynamic_cast<var::Tensor<float>*>(this->m_inputs[0].get());
+    var::Tensor<float> *r_ptr = dynamic_cast<var::Tensor<float>*>(this->m_inputs[1].get());
+
+    std::shared_ptr<julie::la::iMatrix<float>> r_mat_ptr = r_ptr->val();
+
+    // Do chain rule for left hand side
+    l_ptr->add_grad(*out_grad);
+
+    lint r_mat_size = r_mat_ptr->shape().size();
+
+    size_t count = 0;
+    if (this->m_fused_cache.empty())
+    {
+        this->m_fused_cache.push_back(julie::la::iMatrix<float> {});
+    }
+    
+    this->m_fused_cache[0] = *out_grad;
+    while (this->m_fused_cache[count].shape().size() > r_mat_size)
+    {
+        if (this->m_fused_cache.size() <= count + 1)
         {
-            fused = fused.get_fused(0);
+            this->m_fused_cache.push_back(julie::la::iMatrix<float> {});
         }
 
-        // std::cout << fused << std::endl;
+        this->m_fused_cache[count].get_reduce_sum(this->m_fused_cache[count + 1], 0);
+        ++count;
+    }
 
-        // Do chain rule for right hand side
-        r_ptr->grad(fused);
+    // Do chain rule for right hand side
+    r_ptr->add_grad(this->m_fused_cache[count]);
+}
+
+void Add::clear_cache()
+{
+    for (auto &mat : this->m_fused_cache)
+    {
+        mat = julie::la::iMatrix<float> {};
     }
 }
+
+} // namespace func
+} // namespace nn
+} // namespace julie

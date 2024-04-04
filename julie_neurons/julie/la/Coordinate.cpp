@@ -1,11 +1,36 @@
+/******************************************************************************
+ *             Copyright 2020 DeepFrame AI
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ ******************************************************************************/
+
 #include "Coordinate.hpp"
-#include "Exceptions.hpp"
+#include "utilities.hpp"
 #include <functional>
 #include <cstring>
 
 
-julie::la::Coordinate::Coordinate(std::initializer_list<lint> list, const Shape & shape)
-    : m_dim(list.end() - list.begin()), m_shape{ shape }
+namespace julie
+{
+namespace la
+{
+
+Coordinate::Coordinate(std::initializer_list<lint> list, const Shape & shape)
+    :
+    m_dim {list.end() - list.begin()},
+    m_data {nullptr},
+    m_shape {shape},
+    m_index {0}
 {
     if (shape.m_dim != this->m_dim)
     {
@@ -15,7 +40,6 @@ julie::la::Coordinate::Coordinate(std::initializer_list<lint> list, const Shape 
     if (this->m_dim < 1)
     {
         this->m_dim = 0;
-        this->m_data = nullptr;
         return;
     }
 
@@ -39,12 +63,30 @@ julie::la::Coordinate::Coordinate(std::initializer_list<lint> list, const Shape 
             throw std::invalid_argument(std::string("Shape and coordinate incompatible"));
         }
     }
+
+    lint index = 0;
+    for (lint i = 0; i < this->m_dim; ++i)
+    {
+        index *= this->m_shape.m_data[i];
+        index += this->m_data[i];
+    }
+
+    this->m_index = index;
 }
 
 
-julie::la::Coordinate::Coordinate(const Shape & shape)
-    : m_dim{ shape.m_dim }, m_shape{ shape }
+Coordinate::Coordinate(const Shape & shape)
+    :
+    m_dim {shape.m_dim},
+    m_data {nullptr},
+    m_shape {shape},
+    m_index {0}
 {
+    if (this->m_dim < 1)
+    {
+        return;
+    }
+
     this->m_data = new lint[this->m_dim];
     for (lint i = 0; i < this->m_dim; ++i)
     {
@@ -53,12 +95,27 @@ julie::la::Coordinate::Coordinate(const Shape & shape)
 }
 
 
-julie::la::Coordinate::Coordinate(lint index, const Shape & shape)
-    : m_dim{ shape.m_dim }, m_shape{ shape }
+Coordinate::Coordinate(lint index, const Shape & shape)
+    :
+    m_dim {shape.m_dim},
+    m_data {nullptr},
+    m_shape {shape},
+    m_index {0}
 {
+    if (this->m_dim < 1)
+    {
+        return;
+    }
+
     this->m_data = new lint[this->m_dim];
-    
+
     index %= this->m_shape.m_size;
+    if (index < 0)
+    {
+        index += this->m_shape.m_size;
+    }
+
+    this->m_index = index;
 
     for (lint i = this->m_dim - 1; i >= 0; --i)
     {
@@ -68,37 +125,62 @@ julie::la::Coordinate::Coordinate(lint index, const Shape & shape)
 }
 
 
-julie::la::Coordinate::Coordinate()
-    : m_dim{ 0 }, m_shape{}, m_data {nullptr}
+Coordinate::Coordinate()
+    :
+    m_dim {0},
+    m_data {nullptr},
+    m_shape {},
+    m_index {0}
 {}
 
 
-julie::la::Coordinate::Coordinate(const Coordinate & other)
-    : m_dim{ other.m_dim }, m_shape{ other.m_shape }
+Coordinate::Coordinate(const Coordinate & other)
+    :
+    m_dim {other.m_dim},
+    m_data {nullptr},
+    m_shape {other.m_shape},
+    m_index {other.m_index}
 {
+    if (other.m_dim < 1)
+    {
+        return;
+    }
+
     this->m_data = new lint[this->m_dim];
 
     std::memcpy(this->m_data, other.m_data, this->m_dim * sizeof(lint));
 }
 
 
-julie::la::Coordinate::Coordinate(Coordinate && other)
-    : m_dim{ other.m_dim }, m_data{ other.m_data }, m_shape{ std::move(other.m_shape) }
+Coordinate::Coordinate(Coordinate && other)
+    :
+    m_dim {other.m_dim},
+    m_data {other.m_data},
+    m_shape {std::move(other.m_shape)},
+    m_index {other.m_index}
 {
     other.m_dim = 0;
     other.m_data = nullptr;
+    other.m_index = 0;
 }
 
-julie::la::Coordinate::~Coordinate()
+Coordinate::~Coordinate()
 {
     delete[]this->m_data;
 }
 
-julie::la::Coordinate & julie::la::Coordinate::operator = (const Coordinate & other)
+Coordinate & Coordinate::operator = (const Coordinate & other)
 {
     delete[]m_data;
     this->m_dim = other.m_dim;
+    this->m_data = nullptr;
     this->m_shape = other.m_shape;
+    this->m_index = other.m_index;
+
+    if (this->m_dim < 1)
+    {
+        return *this;
+    }
 
     this->m_data = new lint[m_dim];
     std::memcpy(this->m_data, other.m_data, m_dim * sizeof(lint));
@@ -106,12 +188,13 @@ julie::la::Coordinate & julie::la::Coordinate::operator = (const Coordinate & ot
     return *this;
 }
 
-julie::la::Coordinate & julie::la::Coordinate::operator = (Coordinate && other)
+Coordinate & Coordinate::operator = (Coordinate && other)
 {
     delete[]m_data;
     this->m_dim = other.m_dim;
-    this->m_shape = std::move(other.m_shape);
     this->m_data = other.m_data;
+    this->m_shape = std::move(other.m_shape);
+    this->m_index = other.m_index;
 
     other.m_dim = 0;
     other.m_data = nullptr;
@@ -119,9 +202,20 @@ julie::la::Coordinate & julie::la::Coordinate::operator = (Coordinate && other)
     return *this;
 }
 
-julie::la::Coordinate & julie::la::Coordinate::operator = (lint index)
+Coordinate & Coordinate::operator = (lint index)
 {
+    if (this->m_dim < 1)
+    {
+        return *this;
+    }
+
     index %= this->m_shape.m_size;
+    if (index < 0)
+    {
+        index += this->m_shape.m_size;
+    }
+
+    this->m_index = index;
 
     for (lint i = this->m_dim - 1; i >= 0; --i)
     {
@@ -132,18 +226,23 @@ julie::la::Coordinate & julie::la::Coordinate::operator = (lint index)
     return *this;
 }
 
-lint julie::la::Coordinate::operator [] (lint index) const
+lint Coordinate::operator [] (lint index) const
 {
     return this->m_data[index];
 }
 
-lint & julie::la::Coordinate::operator [] (lint index)
+lint & Coordinate::operator [] (lint index)
 {
     return this->m_data[index];
 }
 
-julie::la::Coordinate & julie::la::Coordinate::operator++()
+Coordinate & Coordinate::operator++()
 {
+    if (this->m_dim < 1)
+    {
+        return *this;
+    }
+
     lint plus_pos = this->m_dim - 1;
     while (plus_pos >= 0)
     {
@@ -160,18 +259,29 @@ julie::la::Coordinate & julie::la::Coordinate::operator++()
         }
     }
 
+    ++this->m_index;
+    if (this->m_index >= this->m_shape.m_size)
+    {
+        this->m_index -= this->m_shape.m_size;
+    }
+
     return *this;
 }
 
-julie::la::Coordinate julie::la::Coordinate::operator++(int)
+Coordinate Coordinate::operator++(int)
 {
     Coordinate copy{ *this };
     ++(*this);
     return copy;
 }
 
-julie::la::Coordinate & julie::la::Coordinate::operator--()
+Coordinate & Coordinate::operator--()
 {
+    if (this->m_dim < 1)
+    {
+        return *this;
+    }
+
     lint plus_pos = this->m_dim - 1;
     while (plus_pos >= 0)
     {
@@ -187,39 +297,24 @@ julie::la::Coordinate & julie::la::Coordinate::operator--()
             --plus_pos;
         }
     }
+    
+    --this->m_index;
+    if (this->m_index < 0)
+    {
+        this->m_index += this->m_shape.m_size;
+    }
 
     return *this;
 }
 
-julie::la::Coordinate julie::la::Coordinate::operator--(int)
+Coordinate Coordinate::operator--(int)
 {
     Coordinate copy{ *this };
     --(*this);
     return copy;
 }
 
-julie::la::Coordinate & julie::la::Coordinate::transposed_plus()
-{
-    lint plus_pos = 0;
-    while (plus_pos < this->m_dim)
-    {
-        lint increased = this->m_data[plus_pos] + 1;
-        if (increased < this->m_shape.m_data[plus_pos])
-        {
-            this->m_data[plus_pos] = increased;
-            break;
-        }
-        else
-        {
-            this->m_data[plus_pos] = 0;
-            ++plus_pos;
-        }
-    }
-
-    return *this;
-}
-
-julie::la::Coordinate julie::la::Coordinate::sub_coordinate(lint dim_first, lint dim_last) const
+Coordinate Coordinate::sub_coordinate(lint dim_first, lint dim_last) const
 {
     Coordinate sub_co;
 
@@ -245,27 +340,28 @@ julie::la::Coordinate julie::la::Coordinate::sub_coordinate(lint dim_first, lint
 
     sub_co.m_shape = this->m_shape.sub_shape(dim_first, dim_last);
 
+    lint index = 0;
+    for (lint i = 0; i < sub_co.m_dim; ++i)
+    {
+        index *= sub_co.m_shape.m_data[i];
+        index += sub_co.m_data[i];
+    }
+    sub_co.m_index = index;
+
     return sub_co;
 }
 
-lint julie::la::Coordinate::index() const
+lint Coordinate::index() const
 {
-    lint index = 0;
-    for (lint i = 0; i < this->m_dim; ++i)
-    {
-        index *= this->m_shape.m_data[i];
-        index += this->m_data[i];
-    }
-
-    return index;
+    return this->m_index;
 }
 
-lint julie::la::Coordinate::dim() const
+lint Coordinate::dim() const
 {
     return this->m_dim;
 }
 
-julie::la::Coordinate julie::la::Coordinate::get_reversed() const
+Coordinate Coordinate::get_reversed() const
 {
     Coordinate reversed{*this};
     reversed.m_shape = this->m_shape.get_reversed();
@@ -277,15 +373,23 @@ julie::la::Coordinate julie::la::Coordinate::get_reversed() const
         reversed.m_data[this->m_dim - 1 - i] = k;
     }
 
+    lint index = 0;
+    for (lint i = 0; i < reversed.m_dim; ++i)
+    {
+        index *= reversed.m_shape.m_data[i];
+        index += reversed.m_data[i];
+    }
+    reversed.m_index = index;
+
     return reversed;
 }
 
-julie::la::Shape julie::la::Coordinate::get_shape() const
+Shape Coordinate::get_shape() const
 {
     return this->m_shape;
 }
 
-julie::la::Coordinate julie::la::operator + (const Coordinate &left, const Coordinate &right)
+Coordinate operator + (const Coordinate &left, const Coordinate &right)
 {
     Coordinate merged;
     merged.m_dim = left.m_dim + right.m_dim;
@@ -302,55 +406,58 @@ julie::la::Coordinate julie::la::operator + (const Coordinate &left, const Coord
         merged.m_data[i] = right.m_data[i - left.m_dim];
     }
 
+    lint index = 0;
+    for (lint i = 0; i < merged.m_dim; ++i)
+    {
+        index *= merged.m_shape[i];
+        index += merged.m_data[i];
+    }
+    merged.m_index = index;
+
     return merged;
 }
 
-bool julie::la::operator == (const Coordinate & left, const Coordinate & right)
+bool operator == (const Coordinate & left, const Coordinate & right)
 {
+    if (left.m_dim != right.m_dim)
+    {
+        return false;
+    }
+
     if (left.m_shape != right.m_shape)
     {
         return false;
     }
 
-    for (lint i = 0; i < left.m_dim; ++i)
+    if (left.m_index != right.m_index)
     {
-        if (left.m_data[i] != right.m_data[i])
-        {
-            return false;
-        }
+        return false;
     }
 
     return true;
 }
 
-bool julie::la::operator != (const Coordinate & left, const Coordinate & right)
+bool operator != (const Coordinate & left, const Coordinate & right)
 {
     return !(left == right);
 }
 
-bool julie::la::operator < (const Coordinate &left, const Coordinate &right)
+bool operator < (const Coordinate &left, const Coordinate &right)
 {
+    if (left.m_dim != right.m_dim)
+    {
+        return false;
+    }
+
     if (left.m_shape != right.m_shape)
     {
         return false;
     }
 
-    for (lint i = 0; i < left.m_dim; ++i)
-    {
-        if (left.m_data[i] < right.m_data[i])
-        {
-            return true;
-        }
-        else if (left.m_data[i] > right.m_data[i])
-        {
-            return false;
-        }
-    }
-
-    return false;
+    return left.m_index < right.m_index;
 }
 
-bool julie::la::operator <= (const Coordinate &left, const Coordinate &right)
+bool operator <= (const Coordinate &left, const Coordinate &right)
 {
     if (left < right || left == right)
     {
@@ -360,29 +467,22 @@ bool julie::la::operator <= (const Coordinate &left, const Coordinate &right)
     return false;
 }
 
-bool julie::la::operator > (const Coordinate &left, const Coordinate &right)
+bool operator > (const Coordinate &left, const Coordinate &right)
 {
+    if (left.m_dim != right.m_dim)
+    {
+        return false;
+    }
+
     if (left.m_shape != right.m_shape)
     {
         return false;
     }
 
-    for (lint i = 0; i < left.m_dim; ++i)
-    {
-        if (left.m_data[i] > right.m_data[i])
-        {
-            return true;
-        }
-        else if (left.m_data[i] < right.m_data[i])
-        {
-            return false;
-        }
-    }
-
-    return false;
+    return left.m_index > right.m_index;
 }
 
-bool julie::la::operator >= (const Coordinate &left, const Coordinate &right)
+bool operator >= (const Coordinate &left, const Coordinate &right)
 {
     if (left > right || left == right)
     {
@@ -392,7 +492,7 @@ bool julie::la::operator >= (const Coordinate &left, const Coordinate &right)
     return false;
 }
 
-std::ostream & julie::la::operator<<(std::ostream & os, const Coordinate & co)
+std::ostream & operator<<(std::ostream & os, const Coordinate & co)
 {
     os << '[';
     for (lint i = 0; i < co.m_dim; ++i)
@@ -408,7 +508,11 @@ std::ostream & julie::la::operator<<(std::ostream & os, const Coordinate & co)
     return os;
 }
 
-julie::la::Coordinate julie::la::reverse(const Coordinate & sh)
+Coordinate reverse(const Coordinate & sh)
 {
     return sh.get_reversed();
 }
+
+
+} // namespace la
+} // namespace julie

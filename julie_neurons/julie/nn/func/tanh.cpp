@@ -1,43 +1,62 @@
+/******************************************************************************
+ *             Copyright 2020 DeepFrame AI
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ ******************************************************************************/
+
 #include "tanh.hpp"
+#include "iMatrix_func.hpp"
 
-
-julie::nn::func::TanH::TanH(const std::shared_ptr<op::Variable> & t_ptr)
-    :
-    op::Function {},
-    m_tanh {std::make_unique<la::TanH<double>>()},
-    m_diff {}
+namespace julie
 {
-    // double var = static_cast<double>(100) / w_mat.shape().size();
-    // w_mat.gaussian_random(0, var);
+namespace nn
+{
+namespace func
+{
 
-    this->m_inputs.push_back(t_ptr);
-    t_ptr->add_receiver(this);
-
-    this->m_output = std::make_shared<var::Tensor<double>> ();
-    this->m_output->set_provider(this);
+TanH::TanH()
+    :
+    op::Function {std::string {"TanH"}, false},
+    m_tanh {std::make_unique<la::TanH<float>>()}
+{
+    this->m_output = std::make_shared<var::Tensor<float>> ();
 }
 
-julie::nn::func::TanH::TanH(const TanH & other)
+TanH::TanH(const TanH & other)
     :
     op::Function {other},
-    m_tanh {std::make_unique<la::TanH<double>>(*(other.m_tanh))}
-{}
+    m_tanh {std::make_unique<la::TanH<float>>(*(other.m_tanh))}
+{
+    this->m_output = std::make_shared<var::Tensor<float>> ();
+}
 
-julie::nn::func::TanH::TanH(TanH && other)
+TanH::TanH(TanH && other)
     :
     op::Function {other},
     m_tanh {std::move(other.m_tanh)}
-{}
+{
+    this->m_output = std::make_shared<var::Tensor<float>> ();
+}
 
-julie::nn::func::TanH & julie::nn::func::TanH::operator = (const TanH & other)
+TanH & TanH::operator = (const TanH & other)
 {
     op::Function::operator = (other);
-    this->m_tanh = std::make_unique<la::TanH<double>>(*(other.m_tanh));
+    this->m_tanh = std::make_unique<la::TanH<float>>(*(other.m_tanh));
 
     return *this;
 }
 
-julie::nn::func::TanH & julie::nn::func::TanH::operator = (TanH && other)
+TanH & TanH::operator = (TanH && other)
 {
     op::Function::operator = (other);
     this->m_tanh = std::move(other.m_tanh);
@@ -45,39 +64,48 @@ julie::nn::func::TanH & julie::nn::func::TanH::operator = (TanH && other)
     return *this;
 }
 
-void julie::nn::func::TanH::forward()
+void TanH::set_inputs(const std::shared_ptr<op::Function> & self, 
+                                    const std::vector<std::shared_ptr<op::Variable>> & inputs)
 {
-    var::Tensor<double> *input_ptr = dynamic_cast<var::Tensor<double>*>(this->m_inputs[0].get());
-    std::shared_ptr<la::DMatrix<double>> t_mat_ptr = input_ptr->val();
-
-    var::Tensor<double> *output_ptr = dynamic_cast<var::Tensor<double>*>(this->m_output.get());
-
-    la::DMatrix<double> output_mat;
-
-    if (input_ptr->needs_grad())
+    if (inputs.size() != 1)
     {
-        this->m_tanh->operator()(output_mat, this->m_diff, *t_mat_ptr);
-    }
-    else
-    {
-        this->m_tanh->operator()(output_mat, *t_mat_ptr);
+        throw std::invalid_argument(std::string("Number of inputs for TanH operation is not 1"));
     }
 
-    output_ptr->val(std::move(output_mat));
+    op::Function::set_inputs(self, inputs);
 }
 
-void julie::nn::func::TanH::backward()
+void TanH::forward()
 {
-    var::Tensor<double> *output_ptr = dynamic_cast<var::Tensor<double>*>(this->m_output.get());
-    std::shared_ptr<la::DMatrix<double>> out_grad = output_ptr->grad();
+    var::Tensor<float> *input_ptr = dynamic_cast<var::Tensor<float>*>(this->m_inputs[0].get());
+    std::shared_ptr<julie::la::iMatrix<float>> t_mat_ptr = input_ptr->val();
 
-    var::Tensor<double> *input_ptr = dynamic_cast<var::Tensor<double>*>(this->m_inputs[0].get());
+    var::Tensor<float> *output_ptr = dynamic_cast<var::Tensor<float>*>(this->m_output.get());
 
-    std::shared_ptr<la::DMatrix<double>> t_mat_ptr = input_ptr->val();
-
-    if (input_ptr->needs_grad())
-    {
-        // Do chain rule for the input
-        input_ptr->grad(la::multiply(this->m_diff, *out_grad));
-    }
+    // Forward
+    this->m_tanh->operator()(*(output_ptr->val()), this->m_diff, *t_mat_ptr);
 }
+
+void TanH::backward()
+{
+    var::Tensor<float> *output_ptr = dynamic_cast<var::Tensor<float>*>(this->m_output.get());
+    std::shared_ptr<julie::la::iMatrix<float>> out_grad = output_ptr->grad();
+
+    var::Tensor<float> *input_ptr = dynamic_cast<var::Tensor<float>*>(this->m_inputs[0].get());
+
+    std::shared_ptr<julie::la::iMatrix<float>> t_mat_ptr = input_ptr->val();
+
+    // Do chain rule for the input
+    julie::la::multiply(this->m_input_grad_cache, this->m_diff, *out_grad);
+    input_ptr->add_grad(this->m_input_grad_cache);
+}
+
+void TanH::clear_cache()
+{
+    this->m_diff = julie::la::iMatrix<float> {};
+    this->m_input_grad_cache = julie::la::iMatrix<float> {};
+}
+
+} // namespace func
+} // namespace nn
+} // namespace julie

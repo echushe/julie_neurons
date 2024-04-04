@@ -1,77 +1,113 @@
+/******************************************************************************
+ *             Copyright 2020 DeepFrame AI
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ ******************************************************************************/
+
 #include "scale.hpp"
+#include "iMatrix_func.hpp"
 
+namespace julie
+{
+namespace nn
+{
+namespace func
+{
 
-julie::nn::func::Scale::Scale(const std::shared_ptr<op::Variable> & l_ptr, const std::shared_ptr<op::Variable> & r_ptr)
+Scale::Scale()
     :
-    op::Function {}
+    op::Function {std::string {"Scale"}, false}
 {
-    // double var = static_cast<double>(100) / w_mat.shape().size();
-    // w_mat.gaussian_random(0, var);
-
-    this->m_inputs.push_back(l_ptr);
-    this->m_inputs.push_back(r_ptr);
-
-    l_ptr->add_receiver(this);
-    r_ptr->add_receiver(this);
-
-    this->m_output = std::make_shared<var::Tensor<double>> ();
-    this->m_output->set_provider(this);
+    this->m_output = std::make_shared<var::Tensor<float>> ();
 }
 
-julie::nn::func::Scale::Scale(const Scale & other)
+Scale::Scale(const Scale & other)
     : op::Function {other}
-{}
+{
+    this->m_output = std::make_shared<var::Tensor<float>> ();
+}
 
-julie::nn::func::Scale::Scale(Scale && other)
+Scale::Scale(Scale && other)
     : op::Function {other}
-{}
+{
+    this->m_output = std::make_shared<var::Tensor<float>> ();
+}
 
-julie::nn::func::Scale & julie::nn::func::Scale::operator = (const Scale & other)
+Scale & Scale::operator = (const Scale & other)
 {
     op::Function::operator = (other);
 
     return *this;
 }
 
-julie::nn::func::Scale & julie::nn::func::Scale::operator = (Scale && other)
+Scale & Scale::operator = (Scale && other)
 {
     op::Function::operator = (other);
 
     return *this;
 }
 
-void julie::nn::func::Scale::forward()
+void Scale::set_inputs(const std::shared_ptr<op::Function> & self, 
+                                    const std::vector<std::shared_ptr<op::Variable>> & inputs)
 {
-    var::Tensor<double> *l_ptr = dynamic_cast<var::Tensor<double>*>(this->m_inputs[0].get());
-    var::Scalar<double> *r_ptr = dynamic_cast<var::Scalar<double>*>(this->m_inputs[1].get());
-
-    std::shared_ptr<la::DMatrix<double>> l_mat_ptr = l_ptr->val();
-    std::shared_ptr<double> scalar_ptr = r_ptr->val();
-
-    var::Tensor<double> *output_ptr = dynamic_cast<var::Tensor<double>*>(this->m_output.get());
-    output_ptr->val(*l_mat_ptr * *scalar_ptr);
-}
-
-void julie::nn::func::Scale::backward()
-{
-    var::Tensor<double> *output = dynamic_cast<var::Tensor<double>*>(this->m_output.get());
-    std::shared_ptr<la::DMatrix<double>> out_grad = output->grad();
-
-    var::Tensor<double> *l_ptr = dynamic_cast<var::Tensor<double>*>(this->m_inputs[0].get());
-    var::Scalar<double> *r_ptr = dynamic_cast<var::Scalar<double>*>(this->m_inputs[1].get());
-
-    std::shared_ptr<la::DMatrix<double>> l_mat_ptr = l_ptr->val();
-    std::shared_ptr<double> scale_ptr = r_ptr->val();
-
-    if (l_ptr->needs_grad())
+    if (inputs.size() != 2)
     {
-        // Do chain rule for left hand side
-        l_ptr->grad(*out_grad * *scale_ptr);
+        throw std::invalid_argument(std::string("Number of inputs for scale operation is not 2"));
     }
 
-    if (r_ptr->needs_grad())
-    {
-        // Do chain rule for right hand side
-        r_ptr->grad(la::dot_product(*l_mat_ptr, *out_grad) / l_mat_ptr->shape().size());
-    }
+    op::Function::set_inputs(self, inputs);
 }
+
+void Scale::forward()
+{
+    var::Tensor<float> *l_ptr = dynamic_cast<var::Tensor<float>*>(this->m_inputs[0].get());
+    var::Scalar<float> *r_ptr = dynamic_cast<var::Scalar<float>*>(this->m_inputs[1].get());
+
+    std::shared_ptr<julie::la::iMatrix<float>> l_mat_ptr = l_ptr->val();
+    std::shared_ptr<float> scalar_ptr = r_ptr->val();
+
+    var::Tensor<float> *output_ptr = dynamic_cast<var::Tensor<float>*>(this->m_output.get());
+
+    // forward
+    julie::la::multiply(*(output_ptr->val()), *l_mat_ptr, *scalar_ptr);
+}
+
+void Scale::backward()
+{
+    var::Tensor<float> *output = dynamic_cast<var::Tensor<float>*>(this->m_output.get());
+    std::shared_ptr<julie::la::iMatrix<float>> out_grad = output->grad();
+
+    var::Tensor<float> *l_ptr = dynamic_cast<var::Tensor<float>*>(this->m_inputs[0].get());
+    var::Scalar<float> *r_ptr = dynamic_cast<var::Scalar<float>*>(this->m_inputs[1].get());
+
+    std::shared_ptr<julie::la::iMatrix<float>> l_mat_ptr = l_ptr->val();
+    std::shared_ptr<float> scale_ptr = r_ptr->val();
+
+    // Do chain rule for left hand side
+    julie::la::multiply(this->m_left_grad_cache, *out_grad, *scale_ptr);
+    l_ptr->add_grad(this->m_left_grad_cache);
+
+    // Do chain rule for right hand side
+    r_ptr->add_grad(julie::la::dot_product(this->m_right_grad_multiply_cache, *l_mat_ptr, *out_grad));
+    //r_ptr->add_grad(julie::la::dot_product(this->m_right_grad_multiply_cache, *l_mat_ptr, *out_grad) / l_mat_ptr->shape().size());
+}
+
+void Scale::clear_cache()
+{
+    this->m_left_grad_cache = julie::la::iMatrix<float> {};
+    this->m_right_grad_multiply_cache = julie::la::iMatrix<float> {};
+}
+
+} // namespace func
+} // namespace nn
+} // namespace julie

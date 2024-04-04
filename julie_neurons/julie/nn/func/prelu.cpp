@@ -1,98 +1,122 @@
+/******************************************************************************
+ *             Copyright 2020 DeepFrame AI
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ ******************************************************************************/
+
 #include "prelu.hpp"
+#include "iMatrix_func.hpp"
 
-
-julie::nn::func::PReLU::PReLU(const std::shared_ptr<op::Variable> & t_ptr, const std::shared_ptr<op::Variable> & alpha)
-    :
-    op::Function {},
-    m_relu {std::make_unique<la::PReLU<double>>()},
-    m_diff {}
+namespace julie
 {
-    // double var = static_cast<double>(100) / w_mat.shape().size();
-    // w_mat.gaussian_random(0, var);
+namespace nn
+{
+namespace func
+{
 
-    this->m_inputs.push_back(t_ptr);
-    this->m_inputs.push_back(alpha);
-
-    t_ptr->add_receiver(this);
-    alpha->add_receiver(this);
-
-    this->m_output = std::make_shared<var::Tensor<double>> ();
-    this->m_output->set_provider(this);
+PReLU::PReLU()
+    :
+    op::Function {std::string {"PReLU"}, false},
+    m_prelu {std::make_unique<la::PReLU<float>>()}
+{
+    this->m_output = std::make_shared<var::Tensor<float>> ();
 }
 
-julie::nn::func::PReLU::PReLU(const PReLU & other)
+PReLU::PReLU(const PReLU & other)
     :
     op::Function {other},
-    m_relu {std::make_unique<la::PReLU<double>>(*(other.m_relu))}
-{}
+    m_prelu {std::make_unique<la::PReLU<float>>(*(other.m_prelu))}
+{
+    this->m_output = std::make_shared<var::Tensor<float>> ();
+}
 
-julie::nn::func::PReLU::PReLU(PReLU && other)
+PReLU::PReLU(PReLU && other)
     :
     op::Function {other},
-    m_relu {std::move(other.m_relu)}
-{}
+    m_prelu {std::move(other.m_prelu)}
+{
+    this->m_output = std::make_shared<var::Tensor<float>> ();
+}
 
-julie::nn::func::PReLU & julie::nn::func::PReLU::operator = (const PReLU & other)
+PReLU & PReLU::operator = (const PReLU & other)
 {
     op::Function::operator = (other);
-    this->m_relu = std::make_unique<la::PReLU<double>>(*(other.m_relu));
+    this->m_prelu = std::make_unique<la::PReLU<float>>(*(other.m_prelu));
 
     return *this;
 }
 
-julie::nn::func::PReLU & julie::nn::func::PReLU::operator = (PReLU && other)
+PReLU & PReLU::operator = (PReLU && other)
 {
     op::Function::operator = (other);
-    this->m_relu = std::move(other.m_relu);
+    this->m_prelu = std::move(other.m_prelu);
 
     return *this;
 }
 
-void julie::nn::func::PReLU::forward()
+void PReLU::set_inputs(const std::shared_ptr<op::Function> & self, 
+                                    const std::vector<std::shared_ptr<op::Variable>> & inputs)
 {
-    var::Tensor<double> *input_ptr = dynamic_cast<var::Tensor<double>*>(this->m_inputs[0].get());
-    std::shared_ptr<la::DMatrix<double>> t_mat_ptr = input_ptr->val();
-
-    var::Scalar<double> *alpha_ptr = dynamic_cast<var::Scalar<double>*>(this->m_inputs[1].get());
-    std::shared_ptr<double> alpha_val_ptr = alpha_ptr->val();
-
-    var::Tensor<double> *output_ptr = dynamic_cast<var::Tensor<double>*>(this->m_output.get());
-
-    la::DMatrix<double> output_mat;
-
-    if (input_ptr->needs_grad())
+    if (inputs.size() != 2)
     {
-        this->m_relu->operator()(output_mat, this->m_diff, this->m_alpha_diff, *t_mat_ptr, *alpha_val_ptr);
-    }
-    else
-    {
-        this->m_relu->operator()(output_mat, *t_mat_ptr, *alpha_val_ptr);
+        throw std::invalid_argument(std::string("Number of inputs for PReLU operation is not 2"));
     }
 
-    output_ptr->val(std::move(output_mat));
+    op::Function::set_inputs(self, inputs);
 }
 
-void julie::nn::func::PReLU::backward()
+void PReLU::forward()
 {
-    var::Tensor<double> *output_ptr = dynamic_cast<var::Tensor<double>*>(this->m_output.get());
-    std::shared_ptr<la::DMatrix<double>> out_grad = output_ptr->grad();
+    var::Tensor<float> *input_ptr = dynamic_cast<var::Tensor<float>*>(this->m_inputs[0].get());
+    std::shared_ptr<julie::la::iMatrix<float>> t_mat_ptr = input_ptr->val();
 
-    var::Tensor<double> *input_ptr = dynamic_cast<var::Tensor<double>*>(this->m_inputs[0].get());
-    var::Scalar<double> *alpha_ptr = dynamic_cast<var::Scalar<double>*>(this->m_inputs[1].get());
+    var::Scalar<float> *alpha_ptr = dynamic_cast<var::Scalar<float>*>(this->m_inputs[1].get());
+    std::shared_ptr<float> alpha_val_ptr = alpha_ptr->val();
 
-    std::shared_ptr<la::DMatrix<double>> t_mat_ptr = input_ptr->val();
+    var::Tensor<float> *output_ptr = dynamic_cast<var::Tensor<float>*>(this->m_output.get());
 
-    // std::cout << *out_grad << std::endl;
-
-    if (input_ptr->needs_grad())
-    {
-        // Do chain rule for the input
-        input_ptr->grad(la::multiply(this->m_diff, *out_grad));
-    }
-
-    if (alpha_ptr->needs_grad())
-    {
-        // Do chain rule for the alpha
-        alpha_ptr->grad(la::dot_product(this->m_alpha_diff, *out_grad) / this->m_alpha_diff.shape().size()); 
-    }
+    // Forward
+    this->m_prelu->operator()(*(output_ptr->val()), this->m_diff, this->m_alpha_diff, *t_mat_ptr, *alpha_val_ptr);
 }
+
+void PReLU::backward()
+{
+    var::Tensor<float> *output_ptr = dynamic_cast<var::Tensor<float>*>(this->m_output.get());
+    std::shared_ptr<julie::la::iMatrix<float>> out_grad = output_ptr->grad();
+
+    var::Tensor<float> *input_ptr = dynamic_cast<var::Tensor<float>*>(this->m_inputs[0].get());
+    var::Scalar<float> *alpha_ptr = dynamic_cast<var::Scalar<float>*>(this->m_inputs[1].get());
+
+    std::shared_ptr<julie::la::iMatrix<float>> t_mat_ptr = input_ptr->val();
+
+    // Do chain rule for the input
+    julie::la::multiply(this->m_input_grad_cache, this->m_diff, *out_grad);
+    input_ptr->add_grad(this->m_input_grad_cache);
+
+    // Do chain rule for the alpha
+    alpha_ptr->add_grad(julie::la::dot_product(this->m_alpha_diff_multiply_cache, this->m_alpha_diff, *out_grad));
+    // alpha_ptr->add_grad(julie::la::dot_product(this->m_alpha_diff_multiply_cache, this->m_alpha_diff, *out_grad) / this->m_alpha_diff.shape().size());
+}
+
+void PReLU::clear_cache()
+{
+    this->m_diff = julie::la::iMatrix<float> {};
+    this->m_alpha_diff = julie::la::iMatrix<float> {};
+
+    this->m_input_grad_cache = julie::la::iMatrix<float> {};
+    this->m_alpha_diff_multiply_cache = julie::la::iMatrix<float> {};
+}
+
+} // namespace func
+} // namespace nn
+} // namespace julie

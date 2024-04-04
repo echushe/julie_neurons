@@ -29,9 +29,9 @@ namespace dataset
         */
         inline std::unique_ptr<char[]> read_mnist_file(const std::string & path, uint32_t key) const;
 
-        void read_mnist_image_file(std::vector<julie::la::DMatrix<double>> & images, const std::string& path, lint limit = 0) const;
+        void read_mnist_image_file(std::vector<std::shared_ptr<julie::la::iMatrix<float>>> & images, const std::string& path, lint limit = 0) const;
 
-        void read_mnist_label_file(std::vector<julie::la::DMatrix<double>> & labels, const std::string& path, lint limit = 0) const;
+        void read_mnist_label_file(std::vector<std::shared_ptr<julie::la::iMatrix<float>>> & labels, const std::string& path, lint limit = 0) const;
 
     public:
 
@@ -40,6 +40,8 @@ namespace dataset
             const std::string & label_file);
 
         virtual void get_samples_and_labels(
-            std::vector<julie::la::DMatrix<double>> & inputs, std::vector<julie::la::DMatrix<double>> & labels, lint limit = 0) const;
+            std::vector<std::shared_ptr<julie::la::iMatrix<float>>> & inputs,
+            std::vector<std::shared_ptr<julie::la::iMatrix<float>>> & labels,
+            lint limit = 0) const;
     };
 }

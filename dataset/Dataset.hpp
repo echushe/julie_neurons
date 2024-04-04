@@ -1,6 +1,7 @@
 #pragma once
 
-#include "DMatrix.hpp"
+#include "Matrix_CPU.hpp"
+#include "iMatrix.hpp"
 #include <vector>
 
 
@@ -15,6 +16,8 @@ namespace dataset
     {
     public:
         virtual void get_samples_and_labels(
-            std::vector<julie::la::DMatrix<double>> & inputs, std::vector<julie::la::DMatrix<double>> & labels, lint limit = 0) const = 0;
+            std::vector<std::shared_ptr<julie::la::iMatrix<float>>> & inputs,
+            std::vector<std::shared_ptr<julie::la::iMatrix<float>>> & labels,
+            lint limit = 0) const = 0;
     };
 }
