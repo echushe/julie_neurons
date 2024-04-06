@@ -53,15 +53,16 @@ make install PREFIX=location_of_julie_neurons_repository/OpenBLAS
 
 - ### oneDNN can only get installed on x86 platform only.
 
-### Step 1: Download oneDNN source code from https://github.com/oneapi-src/oneDNN
+### Step 1: Download oneDNN source code from https://github.com/oneapi-src/oneDNN and switch to version 2.5
 
 ```sh
 git clone https://github.com/oneapi-src/oneDNN.git
+git checkout v2.5
 ```
 
 ### Step 2: Go to oneDNN documentation https://oneapi-src.github.io/oneDNN/dev_guide_build.html and follow compilation and building steps that match your hardware & system configurations. A new directory named `build` will be created.
 
-### Step 3: Copy `include` directory into `location_of_julie_neurons_repository/oneDNN`
+### Step 3: Copy `include` directories from both `oneDNN` and `oneDNN/build` into `location_of_julie_neurons_repository/oneDNN`
 
 ### Step 4: Create a directory named `lib` in `location_of_julie_neurons_repository/oneDNN/lib`, and copy all files with names beginning with `lib` from `build/src/` into `location_of_julie_neurons_repository/oneDNN/lib`
 
@@ -72,6 +73,8 @@ git clone https://github.com/oneapi-src/oneDNN.git
 - ### CUDA of at least version 8.0 should get installed before you build Julie Neurons with flag **`WITH_CUDA`** turned on in CMake.
 
 - ### Please refer to NVIDIA's official page of CUDA driver and CUDA toolkit for more details of installation of CUDA.
+
+- ### Add `/usr/local/cuda/bin` into the environment variable `PATH`.
 
 ## IV. cuDNN dependency (optional)
 

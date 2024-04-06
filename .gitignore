@@ -1,6 +1,8 @@
 **/CMakeFiles
 **/.vscode
 **/build
+**/oneDNN
+**/OpenBLAS
 CMakeCache.txt
 cmake_install.cmake
 Makefile

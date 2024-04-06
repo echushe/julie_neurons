@@ -18,6 +18,7 @@
 #include "Matrix_CPU_func.hpp"
 
 #include <algorithm>
+#include <limits>
 
 namespace julie
 {

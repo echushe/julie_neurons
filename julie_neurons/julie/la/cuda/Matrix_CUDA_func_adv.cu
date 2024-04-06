@@ -19,6 +19,7 @@
 #include "nsqrt.hpp"
 
 #include <algorithm>
+#include <limits>
 
 template <typename DT>
 __global__ void __pad_2d_kernel_3d(

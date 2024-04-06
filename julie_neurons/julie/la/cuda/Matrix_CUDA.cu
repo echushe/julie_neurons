@@ -36,6 +36,7 @@
 #include <sstream>
 #include <cstring>
 #include <functional>
+#include <limits>
 
 
 namespace julie

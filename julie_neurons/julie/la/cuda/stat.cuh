@@ -18,6 +18,7 @@
 
 #include "cuda_utility.cuh"
 #include <iostream>
+#include <limits>
 
 #define KERNEL_SLICE_LEN 64
 

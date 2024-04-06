@@ -27,7 +27,7 @@
 #include <sstream>
 #include <cstring>
 #include <functional>
-#include <type_traits>
+#include <limits>
 
 
 namespace julie
