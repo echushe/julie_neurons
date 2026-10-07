@@ -3,8 +3,35 @@ cmake_minimum_required(VERSION 3.9)
 set(CUDA_COMPILER "")
 if (WITH_CUDA)
     set(CUDA_COMPILER CUDA)
-    if (NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
-        set(CMAKE_CUDA_ARCHITECTURES 70 75 80)
+
+    # Select nvcc: -DCMAKE_CUDA_COMPILER, -DCUDA_TOOLKIT_ROOT_DIR (e.g. /usr/local/cuda-12.4),
+    # the CUDACXX environment variable, or nvcc in PATH / /usr/local/cuda/bin
+    if (NOT CMAKE_CUDA_COMPILER)
+        if (CUDA_TOOLKIT_ROOT_DIR)
+            set(CMAKE_CUDA_COMPILER ${CUDA_TOOLKIT_ROOT_DIR}/bin/nvcc)
+        elseif (DEFINED ENV{CUDACXX})
+            set(CMAKE_CUDA_COMPILER $ENV{CUDACXX})
+        else()
+            find_program(CMAKE_CUDA_COMPILER nvcc PATHS /usr/local/cuda/bin)
+        endif()
+    endif()
+
+    # Default GPU architectures depend on what this nvcc release supports
+    if (NOT DEFINED CMAKE_CUDA_ARCHITECTURES AND CMAKE_CUDA_COMPILER)
+        execute_process(COMMAND ${CMAKE_CUDA_COMPILER} --version OUTPUT_VARIABLE NVCC_VERSION_OUTPUT)
+        string(REGEX MATCH "release ([0-9]+\\.[0-9]+)" NVCC_VERSION_MATCH "${NVCC_VERSION_OUTPUT}")
+        set(NVCC_VERSION ${CMAKE_MATCH_1})
+        if (NVCC_VERSION VERSION_GREATER_EQUAL 13.0)
+            # CUDA 13 dropped sm_50 - sm_72 (Maxwell, Pascal, Volta)
+            set(CMAKE_CUDA_ARCHITECTURES 75 80 86)
+        elseif (NVCC_VERSION VERSION_GREATER_EQUAL 11.1)
+            set(CMAKE_CUDA_ARCHITECTURES 61 70 75 80 86)
+        elseif (NVCC_VERSION VERSION_GREATER_EQUAL 11.0)
+            set(CMAKE_CUDA_ARCHITECTURES 61 70 75 80)
+        else()
+            set(CMAKE_CUDA_ARCHITECTURES 61 70 75)
+        endif()
+        message(STATUS "nvcc ${NVCC_VERSION}: default CUDA architectures ${CMAKE_CUDA_ARCHITECTURES}")
     endif()
 endif()
 
@@ -30,9 +57,13 @@ add_compile_options(-std=c++14)
 set(CUDA_INCLUDE_DIRS "")
 
 if (WITH_CUDA)
+    # Toolkit that owns the selected nvcc
+    get_filename_component(CUDA_BIN_DIR ${CMAKE_CUDA_COMPILER} DIRECTORY)
+    get_filename_component(CUDA_TOOLKIT_ROOT_DIR ${CUDA_BIN_DIR} DIRECTORY)
+    message(STATUS "CUDA toolkit: ${CUDA_TOOLKIT_ROOT_DIR}")
     set(
         CUDA_INCLUDE_DIRS
-        /usr/local/cuda/include
+        ${CUDA_TOOLKIT_ROOT_DIR}/include
         julie/la/cuda
     )
     add_definitions(-DWITH_CUDA=1)
@@ -69,7 +100,7 @@ include_directories(
 set(CUBLAS_LIB "")
 
 if (WITH_CUDA)
-    link_directories(/usr/local/cuda/lib64)
+    link_directories(${CUDA_TOOLKIT_ROOT_DIR}/lib64)
     set(
         CUDA_BUILD_FILES
         julie/la/cuda/nsqrt.cpp
@@ -181,8 +212,6 @@ if (WITH_CUDA)
     # target_compile_options(julie_neurons PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-rdc=true -gencode arch=compute_61,code=sm_61>)
     if (ARCH_ARM)
         target_compile_options(julie_neurons PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-gencode arch=compute_53,code=sm_53>)
-    else()
-        target_compile_options(julie_neurons PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-gencode arch=compute_61,code=sm_61>)
     endif()
 
     #install(TARGETS cpp_warmup RUNTIME DESTINATION bin)

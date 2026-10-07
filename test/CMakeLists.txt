@@ -16,12 +16,15 @@ set(CMAKE_CXX_COMPILER g++)
 
 add_compile_options(-std=c++14)
 
+# CUDA toolkit to build against; must match the one julie_neurons was built with
+set(CUDA_TOOLKIT_ROOT_DIR /usr/local/cuda CACHE PATH "CUDA toolkit root directory")
+
 set(CUDA_INCLUDE_DIRS "")
 
 if (WITH_CUDA)
     set(
         CUDA_INCLUDE_DIRS
-        /usr/local/cuda/include
+        ${CUDA_TOOLKIT_ROOT_DIR}/include
         ../julie_neurons/julie/la/cuda
     )
     add_definitions(-DWITH_CUDA=1)
@@ -49,7 +52,7 @@ include_directories(
     )
 
 if (WITH_CUDA)
-    link_directories(/usr/local/cuda/lib64)
+    link_directories(${CUDA_TOOLKIT_ROOT_DIR}/lib64)
 endif()
 
 if (WITH_CUDNN)

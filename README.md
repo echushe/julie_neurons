@@ -76,6 +76,10 @@ git checkout v2.5
 
 - ### Add `/usr/local/cuda/bin` into the environment variable `PATH`.
 
+- ### GPU architectures to build for are chosen by CUDA version by default (CUDA 13: `75 80 86`; CUDA 11.1 - 12.x: `61 70 75 80 86`). Override them with `-DCMAKE_CUDA_ARCHITECTURES`, e.g. `-DCMAKE_CUDA_ARCHITECTURES=86`.
+
+- ### To build with a CUDA toolkit other than `/usr/local/cuda`, pass e.g. `-DCUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda-12.4` to CMake for julie_neurons, test and demos alike, in a fresh build directory.
+
 ## IV. cuDNN dependency (optional)
 
 - ### cuDNN should get installed in advance if you would like to boost Julie Neurons with cuDNN. Please read NVIDIA's official document of cuDNN installation guide here carefully: https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html

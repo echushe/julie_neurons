@@ -34,9 +34,9 @@
 
     This directory includes C++ and CUDA source code of basic mathematical implementations running on nvidia GPU. Following requirements should meet if you would like to include source code in this directory into compilation:
 
-    1. The GPU should satisfy at least version 5.3 computing capacity
+    1. CUDA toolkit 11 or newer (building is tested with CUDA 12.4 and 13.2)
 
-    2. CUDA driver/runtime or toolkit higher than 8.0
+    2. The GPU's compute capability should be supported by the CUDA toolkit: at least 7.5 (Turing) for CUDA 13, at least 6.1 (Pascal) by default for CUDA 11 and 12. See ***How to compile and build this library*** below for details.
 
     3. Add ***-DWITH_CUDA=ON*** option while building ***Julie Neurons*** library.
 
@@ -213,6 +213,56 @@ or
 ```sh
 cmake -DWITH_CUDA=ON -DWITH_CUDNN=ON -DCMAKE_BUILD_TYPE=Release ../
 ```
+
+### **Building with different CUDA versions**
+
+The commands above use the first `nvcc` found in `PATH`, or `/usr/local/cuda/bin/nvcc` if there is none. If several CUDA versions are installed, choose one with **CUDA_TOOLKIT_ROOT_DIR**. Use a new, empty *build* directory whenever you switch to another CUDA version, because CMake remembers the CUDA compiler of the first run.
+
+- Default toolkit, whichever CUDA version it is (for example CUDA 13):
+
+```sh
+cmake -DWITH_CUDA=ON -DWITH_CUDNN=ON -DCMAKE_BUILD_TYPE=Release ../
+```
+
+- CUDA 12, for example installed in `/usr/local/cuda-12.4`:
+
+```sh
+cmake -DWITH_CUDA=ON -DWITH_CUDNN=ON -DCUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda-12.4 -DCMAKE_BUILD_TYPE=Release ../
+```
+
+- CUDA 11, for example installed in `/usr/local/cuda-11.8`:
+
+```sh
+cmake -DWITH_CUDA=ON -DWITH_CUDNN=ON -DCUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda-11.8 -DCMAKE_BUILD_TYPE=Release ../
+```
+
+- Early CUDA 11 releases do not support GCC 11 or newer. If CMake fails with `unsupported GNU version!`, give `nvcc` an older host compiler with **CMAKE_CUDA_HOST_COMPILER** (GCC 9 for CUDA 11.0, GCC 10 for CUDA 11.1 - 11.3):
+
+```sh
+cmake -DWITH_CUDA=ON -DWITH_CUDNN=ON -DCUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda-11.2 -DCMAKE_CUDA_HOST_COMPILER=g++-10 -DCMAKE_BUILD_TYPE=Release ../
+```
+
+Pass the same **CUDA_TOOLKIT_ROOT_DIR** when building `../test` and the projects in `../demo`, so that they use the same CUDA toolkit as this library.
+
+cuDNN should be the build made for the selected CUDA major version (for example, the CUDA 12 build of cuDNN 9 when building with CUDA 12).
+
+**GPU architectures**
+
+The GPU architectures (compute capabilities) to compile for are chosen by the CUDA version:
+
+| CUDA version  | Default CUDA architectures | Supported GPUs                             |
+| ---           | ---                        | ---                                        |
+| 13.x          | 75 80 86                   | Turing (7.5) and newer                     |
+| 11.1 - 12.x   | 61 70 75 80 86             | Pascal (6.1) and newer                     |
+| 11.0          | 61 70 75 80                | Pascal (6.1) and newer                     |
+
+CUDA 13 cannot build for Pascal (6.x) or Volta (7.0) GPUs, so use CUDA 12 or 11 for them. To build for other architectures, or only for your own GPU to make the build faster, set **CMAKE_CUDA_ARCHITECTURES**. For example, for compute capability 8.6:
+
+```sh
+cmake -DWITH_CUDA=ON -DWITH_CUDNN=ON -DCMAKE_CUDA_ARCHITECTURES=86 -DCMAKE_BUILD_TYPE=Release ../
+```
+
+You can look up your GPU's compute capability with `nvidia-smi --query-gpu=name,compute_cap --format=csv`.
 
 ### **Step 3: Execute `make` command to build this library:**
 
