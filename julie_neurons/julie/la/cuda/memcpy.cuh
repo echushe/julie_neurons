@@ -19,8 +19,8 @@
 template <typename DT>
 __global__ void __copy_one2n(DT *out_data, DT *in_data, int64_t out_data_len, int64_t duplicate)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
     for (int64_t i = offset; i < out_data_len; i += n_threads)
     {

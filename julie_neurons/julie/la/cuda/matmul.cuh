@@ -54,11 +54,11 @@ __global__ void __matmul_2d_kernel_2d(
     DT *r_data_trans,
     int64_t l_rows, int64_t l_cols_r_rows, int64_t r_cols)
 {
-    int64_t offset_x = blockIdx.x * blockDim.x + threadIdx.x;    // right columns
-    int64_t n_threads_x = gridDim.x * blockDim.x;
+    int64_t offset_x = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;    // right columns
+    int64_t n_threads_x = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
-    int64_t offset_y = blockIdx.y * blockDim.y + threadIdx.y;    // left rows
-    int64_t n_threads_y = gridDim.y * blockDim.y;
+    int64_t offset_y = static_cast<int64_t>(blockIdx.y) * blockDim.y + threadIdx.y;    // left rows
+    int64_t n_threads_y = static_cast<int64_t>(gridDim.y) * blockDim.y;
 
     int64_t l_pos = l_cols_r_rows * offset_y;
     int64_t l_pos_stride = l_cols_r_rows * n_threads_y;
@@ -94,14 +94,14 @@ __global__ void __matmul_2d_kernel_3d(
     DT *r_data_trans,
     int64_t l_rows, int64_t l_cols_r_rows, int64_t r_cols)
 {
-    int64_t offset_x = blockIdx.x * blockDim.x + threadIdx.x;    // right columns
-    int64_t n_threads_x = gridDim.x * blockDim.x;
+    int64_t offset_x = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;    // right columns
+    int64_t n_threads_x = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
-    int64_t offset_y = blockIdx.y * blockDim.y + threadIdx.y;    // left rows
-    int64_t n_threads_y = gridDim.y * blockDim.y;
+    int64_t offset_y = static_cast<int64_t>(blockIdx.y) * blockDim.y + threadIdx.y;    // left rows
+    int64_t n_threads_y = static_cast<int64_t>(gridDim.y) * blockDim.y;
 
-    int64_t offset_z = blockIdx.z * blockDim.z + threadIdx.z;    // left columns and right rows
-    int64_t n_threads_z = gridDim.z * blockDim.z;
+    int64_t offset_z = static_cast<int64_t>(blockIdx.z) * blockDim.z + threadIdx.z;    // left columns and right rows
+    int64_t n_threads_z = static_cast<int64_t>(gridDim.z) * blockDim.z;
 
     int64_t l_pos = l_cols_r_rows * offset_y;
     int64_t l_pos_stride = l_cols_r_rows * n_threads_y;

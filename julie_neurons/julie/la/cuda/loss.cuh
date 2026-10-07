@@ -19,11 +19,11 @@
 template <typename DT>
 __global__ void __loss_half_square_error_2d(DT *out_data, DT *diff_data, DT *target_data, DT *in_data, int64_t left_size, int64_t size, int64_t right_size)
 {
-    int64_t offset_x = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads_x = gridDim.x * blockDim.x;
+    int64_t offset_x = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads_x = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
-    int64_t offset_y = blockIdx.y * blockDim.y + threadIdx.y;
-    int64_t n_threads_y = gridDim.y * blockDim.y;
+    int64_t offset_y = static_cast<int64_t>(blockIdx.y) * blockDim.y + threadIdx.y;
+    int64_t n_threads_y = static_cast<int64_t>(gridDim.y) * blockDim.y;
 
     for (int64_t left_i = offset_y; left_i < left_size; left_i += n_threads_y)
     {
@@ -54,11 +54,11 @@ template <typename DT>
 __global__ void __loss_sigmoid_crossentropy_2d(
     DT *out_data, DT *sigmoid_data, DT *diff_data, DT *target_data, DT *in_data, int64_t left_size, int64_t size, int64_t right_size)
 {
-    int64_t offset_x = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads_x = gridDim.x * blockDim.x;
+    int64_t offset_x = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads_x = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
-    int64_t offset_y = blockIdx.y * blockDim.y + threadIdx.y;
-    int64_t n_threads_y = gridDim.y * blockDim.y;
+    int64_t offset_y = static_cast<int64_t>(blockIdx.y) * blockDim.y + threadIdx.y;
+    int64_t n_threads_y = static_cast<int64_t>(gridDim.y) * blockDim.y;
 
     for (int64_t left_i = offset_y; left_i < left_size; left_i += n_threads_y)
     {
@@ -96,11 +96,11 @@ template <typename DT>
 __global__ void __loss_softmax_crossentropy_2d(
     DT *out_data, DT *softmax_data, DT *diff_data, DT *target_data, DT *in_data, int64_t left_size, int64_t size, int64_t right_size)
 {
-    int64_t offset_x = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads_x = gridDim.x * blockDim.x;
+    int64_t offset_x = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads_x = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
-    int64_t offset_y = blockIdx.y * blockDim.y + threadIdx.y;
-    int64_t n_threads_y = gridDim.y * blockDim.y;
+    int64_t offset_y = static_cast<int64_t>(blockIdx.y) * blockDim.y + threadIdx.y;
+    int64_t n_threads_y = static_cast<int64_t>(gridDim.y) * blockDim.y;
 
     for (int64_t left_i = offset_y; left_i < left_size; left_i += n_threads_y)
     {

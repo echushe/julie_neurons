@@ -25,8 +25,8 @@
 template <typename DT>
 __global__ void __type2float_1d(float *dst_data, DT *src_data, int64_t len)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
     for (int64_t i = offset; i < len; i += n_threads)
     {
@@ -37,8 +37,8 @@ __global__ void __type2float_1d(float *dst_data, DT *src_data, int64_t len)
 template <typename DT>
 __global__ void __float2type_1d(DT *dst_data, float *src_data, int64_t len)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
     for (int64_t i = offset; i < len; i += n_threads)
     {

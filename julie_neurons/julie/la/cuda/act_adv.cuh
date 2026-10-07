@@ -20,8 +20,8 @@
 template <typename DT>
 __global__ void __act_prelu_1d(DT *out_data, DT *diff_data, DT *a_diff_data, DT *in_data, DT a_data, int64_t len)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
     for (int64_t i = offset; i < len; i += n_threads)
     {
@@ -44,8 +44,8 @@ __global__ void __act_prelu_1d(DT *out_data, DT *diff_data, DT *a_diff_data, DT 
 template <typename DT>
 __global__ void __act_prelu_1d(DT *out_data, DT *in_data, DT a_data, int64_t len)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
     for (int64_t i = offset; i < len; i += n_threads)
     {

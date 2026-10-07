@@ -19,8 +19,8 @@
 template <typename DT>
 __global__ void __divide_1d(DT *out_data, DT *left_data, DT *right_data, int64_t len)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
     for (int64_t i = offset; i < len; i += n_threads)
     {
@@ -31,8 +31,8 @@ __global__ void __divide_1d(DT *out_data, DT *left_data, DT *right_data, int64_t
 template <typename DT>
 __global__ void __divide_1d(DT *out_data, DT *left_data, DT scalar, int64_t len)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
     for (int64_t i = offset; i < len; i += n_threads)
     {
@@ -43,8 +43,8 @@ __global__ void __divide_1d(DT *out_data, DT *left_data, DT scalar, int64_t len)
 template <typename DT>
 __global__ void __divide_1d(DT *self_data, DT *right_data, int64_t len)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
     for (int64_t i = offset; i < len; i += n_threads)
     {
@@ -55,8 +55,8 @@ __global__ void __divide_1d(DT *self_data, DT *right_data, int64_t len)
 template <typename DT>
 __global__ void __divide_1d(DT *self_data, DT scalar, int64_t len)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads = gridDim.x * blockDim.x;;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;;
 
     for (int64_t i = offset; i < len; i += n_threads)
     {

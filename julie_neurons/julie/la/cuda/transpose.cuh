@@ -19,8 +19,8 @@
 template <typename DT>
 __global__ void __transpose_1d(DT *out_data, DT *in_data, int64_t in_h, int64_t in_w)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
     int64_t len = in_h * in_w;
 
     for (int64_t idx = offset; idx < len; idx += n_threads)
@@ -36,8 +36,8 @@ __global__ void __transpose_1d(DT *out_data, DT *in_data, int64_t in_h, int64_t 
 template <typename DT>
 __global__ void __transpose_neighboring_dim_pair_1d(DT *out_data, DT *in_data, int64_t left_size, int64_t l_size, int64_t r_size, int64_t right_size)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
     
     int64_t len = left_size * l_size * r_size * right_size;
 

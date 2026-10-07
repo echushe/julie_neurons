@@ -20,8 +20,8 @@
 template <typename DT>
 __global__ void __act_linear_1d(DT *out_data, DT *diff_data, DT *in_data, int64_t len)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
     for (int64_t i = offset; i < len; i += n_threads)
     {
@@ -33,8 +33,8 @@ __global__ void __act_linear_1d(DT *out_data, DT *diff_data, DT *in_data, int64_
 template <typename DT>
 __global__ void __act_linear_1d(DT *out_data, DT *in_data, int64_t len)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
     for (int64_t i = offset; i < len; i += n_threads)
     {
@@ -45,8 +45,8 @@ __global__ void __act_linear_1d(DT *out_data, DT *in_data, int64_t len)
 template <typename DT>
 __global__ void __act_relu_1d(DT *out_data, DT *diff_data, DT *in_data, int64_t len)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
     for (int64_t i = offset; i < len; i += n_threads)
     {
@@ -66,8 +66,8 @@ __global__ void __act_relu_1d(DT *out_data, DT *diff_data, DT *in_data, int64_t 
 template <typename DT>
 __global__ void __act_relu_1d(DT *out_data, DT *in_data, int64_t len)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
     for (int64_t i = offset; i < len; i += n_threads)
     {
@@ -85,8 +85,8 @@ __global__ void __act_relu_1d(DT *out_data, DT *in_data, int64_t len)
 template <typename DT>
 __global__ void __act_abs_1d(DT *out_data, DT *diff_data, DT *in_data, int64_t len)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
     for (int64_t i = offset; i < len; i += n_threads)
     {
@@ -106,8 +106,8 @@ __global__ void __act_abs_1d(DT *out_data, DT *diff_data, DT *in_data, int64_t l
 template <typename DT>
 __global__ void __act_abs_1d(DT *out_data, DT *in_data, int64_t len)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
     for (int64_t i = offset; i < len; i += n_threads)
     {
@@ -125,8 +125,8 @@ __global__ void __act_abs_1d(DT *out_data, DT *in_data, int64_t len)
 template <typename DT>
 __global__ void __act_sigmoid_1d(DT *out_data, DT *diff_data, DT *in_data, int64_t len)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
     for (int64_t i = offset; i < len; i += n_threads)
     {
@@ -139,8 +139,8 @@ __global__ void __act_sigmoid_1d(DT *out_data, DT *diff_data, DT *in_data, int64
 template <typename DT>
 __global__ void __act_sigmoid_1d(DT *out_data, DT *in_data, int64_t len)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
     for (int64_t i = offset; i < len; i += n_threads)
     {
@@ -151,8 +151,8 @@ __global__ void __act_sigmoid_1d(DT *out_data, DT *in_data, int64_t len)
 template <typename DT>
 __global__ void __act_arctan_1d(DT *out_data, DT *diff_data, DT *in_data, int64_t len)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
     for (int64_t i = offset; i < len; i += n_threads)
     {
@@ -165,8 +165,8 @@ __global__ void __act_arctan_1d(DT *out_data, DT *diff_data, DT *in_data, int64_
 template <typename DT>
 __global__ void __act_arctan_1d(DT *out_data, DT *in_data, int64_t len)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
     for (int64_t i = offset; i < len; i += n_threads)
     {
@@ -177,8 +177,8 @@ __global__ void __act_arctan_1d(DT *out_data, DT *in_data, int64_t len)
 template <typename DT>
 __global__ void __act_tanh_1d(DT *out_data, DT *diff_data, DT *in_data, int64_t len)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
     for (int64_t i = offset; i < len; i += n_threads)
     {
@@ -191,8 +191,8 @@ __global__ void __act_tanh_1d(DT *out_data, DT *diff_data, DT *in_data, int64_t 
 template <typename DT>
 __global__ void __act_tanh_1d(DT *out_data, DT *in_data, int64_t len)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
     for (int64_t i = offset; i < len; i += n_threads)
     {
@@ -203,11 +203,11 @@ __global__ void __act_tanh_1d(DT *out_data, DT *in_data, int64_t len)
 template <typename DT>
 __global__ void __act_softmax_2d(DT *out_data, DT *diff_data, DT *in_data, int64_t left_size, int64_t size, int64_t right_size)
 {
-    int64_t offset_x = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads_x = gridDim.x * blockDim.x;
+    int64_t offset_x = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads_x = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
-    int64_t offset_y = blockIdx.y * blockDim.y + threadIdx.y;
-    int64_t n_threads_y = gridDim.y * blockDim.y;
+    int64_t offset_y = static_cast<int64_t>(blockIdx.y) * blockDim.y + threadIdx.y;
+    int64_t n_threads_y = static_cast<int64_t>(gridDim.y) * blockDim.y;
 
     for (int64_t left_i = offset_y; left_i < left_size; left_i += n_threads_y)
     {
@@ -240,11 +240,11 @@ __global__ void __act_softmax_2d(DT *out_data, DT *diff_data, DT *in_data, int64
 template <typename DT>
 __global__ void __act_softmax_2d(DT *out_data, DT *in_data, int64_t left_size, int64_t size, int64_t right_size)
 {
-    int64_t offset_x = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads_x = gridDim.x * blockDim.x;
+    int64_t offset_x = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads_x = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
-    int64_t offset_y = blockIdx.y * blockDim.y + threadIdx.y;
-    int64_t n_threads_y = gridDim.y * blockDim.y;
+    int64_t offset_y = static_cast<int64_t>(blockIdx.y) * blockDim.y + threadIdx.y;
+    int64_t n_threads_y = static_cast<int64_t>(gridDim.y) * blockDim.y;
 
     for (int64_t left_i = offset_y; left_i < left_size; left_i += n_threads_y)
     {

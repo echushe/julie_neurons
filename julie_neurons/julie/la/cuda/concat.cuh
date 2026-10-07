@@ -20,8 +20,8 @@ template <typename DT>
 __global__ void __concat_1d(DT *out_data, DT *mat1_data, DT *mat2_data, 
     int64_t cat1_right_size, int64_t cat2_right_size, int64_t cat1_cat2_right_size, int64_t output_size)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
     for (int64_t i = offset; i < output_size; i += n_threads)
     {
@@ -43,8 +43,8 @@ __global__ void __concat_1d(DT *out_data, DT *mat1_data, DT *mat2_data,
 template <typename DT>
 __global__ void __slice_1d(DT *out_data, DT *input_data, int64_t shift, int64_t input_right_size, int64_t output_right_size, int64_t output_size)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
     for (int64_t i = offset; i < output_size; i += n_threads)
     {
@@ -60,8 +60,8 @@ template <typename DT>
 __global__ void __repeat_1d(DT *out_data, DT *input_data, 
     int64_t input_re_right_size, int64_t output_re_right_size, int64_t output_size)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
     for (int64_t i = offset; i < output_size; i += n_threads)
     {

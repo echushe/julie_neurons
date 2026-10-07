@@ -27,14 +27,14 @@ __global__ void __pad_2d_kernel_3d(
     int64_t in_bat, int64_t in_ch, int64_t in_h, int64_t in_w,
     int64_t pad_h, int64_t pad_w)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
-    int64_t offset_h = blockIdx.y * blockDim.y + threadIdx.y;
-    int64_t n_threads_h = gridDim.y * blockDim.y;
+    int64_t offset_h = static_cast<int64_t>(blockIdx.y) * blockDim.y + threadIdx.y;
+    int64_t n_threads_h = static_cast<int64_t>(gridDim.y) * blockDim.y;
 
-    int64_t offset_w = blockIdx.z * blockDim.z + threadIdx.z;
-    int64_t n_threads_w = gridDim.z * blockDim.z;
+    int64_t offset_w = static_cast<int64_t>(blockIdx.z) * blockDim.z + threadIdx.z;
+    int64_t n_threads_w = static_cast<int64_t>(gridDim.z) * blockDim.z;
 
     int64_t len = in_bat * in_ch;
 
@@ -84,14 +84,14 @@ __global__ void __pad_2d_backward_kernel_3d(
     int64_t out_bat, int64_t out_ch, int64_t out_h, int64_t out_w,
     int64_t pad_h, int64_t pad_w)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x;
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
-    int64_t offset_h = blockIdx.y * blockDim.y + threadIdx.y;
-    int64_t n_threads_h = gridDim.y * blockDim.y;
+    int64_t offset_h = static_cast<int64_t>(blockIdx.y) * blockDim.y + threadIdx.y;
+    int64_t n_threads_h = static_cast<int64_t>(gridDim.y) * blockDim.y;
 
-    int64_t offset_w = blockIdx.z * blockDim.z + threadIdx.z;
-    int64_t n_threads_w = gridDim.z * blockDim.z;
+    int64_t offset_w = static_cast<int64_t>(blockIdx.z) * blockDim.z + threadIdx.z;
+    int64_t n_threads_w = static_cast<int64_t>(gridDim.z) * blockDim.z;
 
     int64_t len = out_bat * out_ch;
 
@@ -126,14 +126,14 @@ __global__ void __img2row_2d_kernel_3d(
     int64_t stride_h, int64_t stride_w,
     int64_t w_h, int64_t w_w)
 {
-    int64_t offset_hw = blockIdx.x * blockDim.x + threadIdx.x; // Parallel for stride_h and stride_w
-    int64_t n_threads_hw = gridDim.x * blockDim.x;
+    int64_t offset_hw = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x; // Parallel for stride_h and stride_w
+    int64_t n_threads_hw = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
-    int64_t offset_ch = blockIdx.y * blockDim.y + threadIdx.y; // Parallel for channel
-    int64_t n_threads_ch = gridDim.y * blockDim.y;
+    int64_t offset_ch = static_cast<int64_t>(blockIdx.y) * blockDim.y + threadIdx.y; // Parallel for channel
+    int64_t n_threads_ch = static_cast<int64_t>(gridDim.y) * blockDim.y;
 
-    int64_t offset_b = blockIdx.z * blockDim.z + threadIdx.z; // Parallel for batch size
-    int64_t n_threads_b = gridDim.z * blockDim.z;
+    int64_t offset_b = static_cast<int64_t>(blockIdx.z) * blockDim.z + threadIdx.z; // Parallel for batch size
+    int64_t n_threads_b = static_cast<int64_t>(gridDim.z) * blockDim.z;
 
     int64_t block_in = in_ch * in_h * in_w;
     int64_t in_ch_size = in_h * in_w;
@@ -191,14 +191,14 @@ __global__ void __img2row_2d_backward_kernel_3d(
     int64_t stride_h, int64_t stride_w,
     int64_t w_ch, int64_t w_h, int64_t w_w)
 {
-    int64_t offset_hw = blockIdx.x * blockDim.x + threadIdx.x; // Parallel for stride_h and stride_w
-    int64_t n_threads_hw = gridDim.x * blockDim.x;
+    int64_t offset_hw = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x; // Parallel for stride_h and stride_w
+    int64_t n_threads_hw = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
-    int64_t offset_ch = blockIdx.y * blockDim.y + threadIdx.y; // Parallel for channel
-    int64_t n_threads_ch = gridDim.y * blockDim.y;
+    int64_t offset_ch = static_cast<int64_t>(blockIdx.y) * blockDim.y + threadIdx.y; // Parallel for channel
+    int64_t n_threads_ch = static_cast<int64_t>(gridDim.y) * blockDim.y;
 
-    int64_t offset_b = blockIdx.z * blockDim.z + threadIdx.z; // Parallel for batch size
-    int64_t n_threads_b = gridDim.z * blockDim.z;
+    int64_t offset_b = static_cast<int64_t>(blockIdx.z) * blockDim.z + threadIdx.z; // Parallel for batch size
+    int64_t n_threads_b = static_cast<int64_t>(gridDim.z) * blockDim.z;
 
     int64_t block_out = w_ch * in_h * in_w;
     int64_t out_ch_size = in_h * in_w;
@@ -267,11 +267,11 @@ __global__ void __maxpool_2d_kernel_2d(
     int64_t k_h, int64_t k_w,
     DT max)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x; // Parallel for batch * channel
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x; // Parallel for batch * channel
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
-    int64_t offset_hw = blockIdx.y * blockDim.y + threadIdx.y; // Parallel for stride_h and stride_w
-    int64_t n_threads_hw = gridDim.y * blockDim.y;
+    int64_t offset_hw = static_cast<int64_t>(blockIdx.y) * blockDim.y + threadIdx.y; // Parallel for stride_h and stride_w
+    int64_t n_threads_hw = static_cast<int64_t>(gridDim.y) * blockDim.y;
 
     int64_t len = in_bat * in_ch;
     int64_t len_hw = out_h * out_w;
@@ -328,11 +328,11 @@ __global__ void __avgpool_2d_kernel_2d(
     int64_t k_h, int64_t k_w,
     DT avg_coe)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x; // Parallel for batch * channel
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x; // Parallel for batch * channel
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
-    int64_t offset_hw = blockIdx.y * blockDim.y + threadIdx.y; // Parallel for stride_h and stride_w
-    int64_t n_threads_hw = gridDim.y * blockDim.y;
+    int64_t offset_hw = static_cast<int64_t>(blockIdx.y) * blockDim.y + threadIdx.y; // Parallel for stride_h and stride_w
+    int64_t n_threads_hw = static_cast<int64_t>(gridDim.y) * blockDim.y;
 
     int64_t len = in_bat * in_ch;
     int64_t len_hw = out_h * out_w;
@@ -374,11 +374,11 @@ __global__ void __pool_generate_gradient_cache_backward_2d(
     int64_t out_h, int64_t out_w,
     int64_t k_h, int64_t k_w)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x; // Parallel for batch * channel
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x; // Parallel for batch * channel
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
-    int64_t offset_hw = blockIdx.y * blockDim.y + threadIdx.y; // Parallel for diff_h and diff_w
-    int64_t n_threads_hw = gridDim.y * blockDim.y;
+    int64_t offset_hw = static_cast<int64_t>(blockIdx.y) * blockDim.y + threadIdx.y; // Parallel for diff_h and diff_w
+    int64_t n_threads_hw = static_cast<int64_t>(gridDim.y) * blockDim.y;
 
     int64_t len = bat * ch;
     int64_t len_hw = diff_h * diff_w;
@@ -412,11 +412,11 @@ __global__ void __pool_generate_input_gradient_backward_2d(
     int64_t stride_h, int64_t stride_w,
     int64_t k_h, int64_t k_w)
 {
-    int64_t offset = blockIdx.x * blockDim.x + threadIdx.x; // Parallel for batch * channel
-    int64_t n_threads = gridDim.x * blockDim.x;
+    int64_t offset = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x; // Parallel for batch * channel
+    int64_t n_threads = static_cast<int64_t>(gridDim.x) * blockDim.x;
 
-    int64_t offset_hw = blockIdx.y * blockDim.y + threadIdx.y; // Parallel for out_h and out_w
-    int64_t n_threads_hw = gridDim.y * blockDim.y;
+    int64_t offset_hw = static_cast<int64_t>(blockIdx.y) * blockDim.y + threadIdx.y; // Parallel for out_h and out_w
+    int64_t n_threads_hw = static_cast<int64_t>(gridDim.y) * blockDim.y;
 
     int64_t len = bat * ch;
     int64_t len_hw = out_h * out_w;
